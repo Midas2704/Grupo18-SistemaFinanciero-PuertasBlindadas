@@ -1,0 +1,5 @@
+# Excluir copia de backend en raíz (bloqueada por el OS)
+/backend/
+
+# Archivos locales
+DATOS.sql
