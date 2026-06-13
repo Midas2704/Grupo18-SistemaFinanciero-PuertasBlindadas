@@ -69,7 +69,7 @@ billingController.post('/quotes', async (req, res) => {
     let subtotal_costos_global = 0;
     const detallesCotizacionData: any[] = [];
 
-    // Obtener un item_comercial generico, si no existe lo creamos para usar como fallback
+    // Obtener un item_comercial generico, si no existe lo creamos para usar como por defecto
     let itemGenerico = await prisma.item_comercial.findFirst();
     if (!itemGenerico) {
       itemGenerico = await prisma.item_comercial.create({
@@ -149,9 +149,9 @@ billingController.post('/quotes', async (req, res) => {
 
     const obsText = `IVA: ${exento_iva ? 'Exento' : iva.toFixed(2)} | Descuento: ${desc_val} ${descuento_tipo}`;
 
-    let estadoCot = 'borrador';
+    let estadoCot = 'pendiente';
     if (userRole === 'Secretaria') {
-      estadoCot = 'borrador'; // 'borrador' instead of 'pendiente_aprobacion'
+      estadoCot = 'pendiente'; // changed from borrador
     } else {
       estadoCot = 'aprobada';
     }
@@ -189,7 +189,7 @@ billingController.post('/quotes', async (req, res) => {
 billingController.get('/pending-approvals', async (req, res) => {
   try {
     const cotizaciones = await prisma.cotizacion.findMany({
-      where: { estado_cotizacion: 'borrador' },
+      where: { estado_cotizacion: { in: ['borrador', 'pendiente'] } },
       include: { 
         ficha_cliente: { include: { cliente_financiero: true } },
         detalle_cotizacion: { 
@@ -204,7 +204,8 @@ billingController.get('/pending-approvals', async (req, res) => {
             } 
           } 
         }
-      }
+      },
+      orderBy: [{ fecha_emision: 'desc' }, { id_cotizacion: 'desc' }]
     });
 
     // En nota_venta, 'emitida' significa que está en la bandeja (no confirmada)
@@ -215,8 +216,13 @@ billingController.get('/pending-approvals', async (req, res) => {
         documento_tributario: { none: {} },
         observacion: 'PENDIENTE_APROBACION'
       },
-      include: { ficha_cliente: { include: { cliente_financiero: true } } }
+      include: { ficha_cliente: { include: { cliente_financiero: true } } },
+      orderBy: [{ fecha_emision: 'desc' }, { id_nota_venta: 'desc' }]
     });
+
+    // Force chronological order
+    cotizaciones.sort((a, b) => new Date(b.fecha_emision).getTime() - new Date(a.fecha_emision).getTime() || b.id_cotizacion - a.id_cotizacion);
+    notas_venta.sort((a, b) => new Date(b.fecha_emision).getTime() - new Date(a.fecha_emision).getTime() || b.id_nota_venta - a.id_nota_venta);
 
     res.json({ cotizaciones, notas_venta });
   } catch (error) {
@@ -245,7 +251,7 @@ billingController.get('/history', async (req, res) => {
           } 
         }
       },
-      orderBy: { fecha_emision: 'desc' },
+      orderBy: [{ fecha_emision: 'desc' }, { id_cotizacion: 'desc' }],
       take: 50
     });
     console.log(`History Cotizaciones Fetched: ${cotizaciones.length}`);
@@ -263,10 +269,14 @@ billingController.get('/history', async (req, res) => {
           }
         }
       },
-      orderBy: { fecha_emision: 'desc' },
+      orderBy: [{ fecha_emision: 'desc' }, { id_nota_venta: 'desc' }],
       take: 50
     });
     console.log(`History Notas de Venta Fetched: ${notas_venta.length}`);
+
+    // Force chronological order
+    cotizaciones.sort((a, b) => new Date(b.fecha_emision).getTime() - new Date(a.fecha_emision).getTime() || b.id_cotizacion - a.id_cotizacion);
+    notas_venta.sort((a, b) => new Date(b.fecha_emision).getTime() - new Date(a.fecha_emision).getTime() || b.id_nota_venta - a.id_nota_venta);
 
     res.json({ cotizaciones, notas_venta });
   } catch (error) {
@@ -289,7 +299,7 @@ billingController.post('/quotes/:id/approve', async (req, res) => {
     if (!cotizacion) return res.status(404).json({ error: 'Cotización no encontrada' });
     if (cotizacion.estado_cotizacion === 'aprobada') return res.status(400).json({ error: 'Cotización ya aprobada' });
 
-    await prisma.$transaction(async (tx) => {
+    const resultTx = await prisma.$transaction(async (tx) => {
       // Aprobar cotización
       await tx.cotizacion.update({
         where: { id_cotizacion },
@@ -297,9 +307,10 @@ billingController.post('/quotes/:id/approve', async (req, res) => {
       });
 
       // Crear nota de venta (RF12)
-      const neto = Number(cotizacion.monto_total_estimado || 0);
-      const impuesto = neto * 0.19;
-      const total = neto + impuesto;
+      // Fix double tax on conversion
+      const neto = Number(cotizacion.precio_sugerido || 0);
+      const total = Number(cotizacion.monto_total_estimado || neto);
+      const impuesto = total - neto;
 
       let fechaVencimiento = new Date();
       if (plazo_pago) {
@@ -308,7 +319,7 @@ billingController.post('/quotes/:id/approve', async (req, res) => {
         fechaVencimiento.setDate(fechaVencimiento.getDate() + 30); // default
       }
 
-      await tx.nota_venta.create({
+      const nuevaNotaVenta = await tx.nota_venta.create({
         data: {
           id_ficha_cliente: cotizacion.id_ficha_cliente,
           id_cotizacion: cotizacion.id_cotizacion,
@@ -323,9 +334,10 @@ billingController.post('/quotes/:id/approve', async (req, res) => {
           estado_pago: 'pendiente',
         }
       });
+      return nuevaNotaVenta;
     });
 
-    res.json({ message: 'Cotización aprobada y Nota de Venta generada exitosamente' });
+    res.json({ message: 'Cotización aprobada y Nota de Venta generada exitosamente', documento: resultTx });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al aprobar cotización' });
@@ -399,11 +411,11 @@ billingController.post('/nota-venta/:id/approve', async (req, res) => {
     const nv = await prisma.nota_venta.findUnique({ where: { id_nota_venta } });
     if (!nv) return res.status(404).json({ error: 'Nota de venta no encontrada' });
     
-    await prisma.nota_venta.update({
+    const nvActualizada = await prisma.nota_venta.update({
       where: { id_nota_venta },
       data: { estado_nota_venta: 'confirmada' }
     });
-    res.json({ message: 'Nota de Venta aprobada exitosamente' });
+    res.json({ message: 'Nota de Venta aprobada exitosamente', documento: nvActualizada });
   } catch (error) {
     res.status(500).json({ error: 'Error al aprobar nota de venta' });
   }
@@ -456,8 +468,8 @@ billingController.get('/exchange-rate/:currency', async (req, res) => {
           throw new Error('API request failed');
         }
       } catch (err) {
-        // Fallback en caso de que la API falle
-        console.error('Error fetching mindicador.cl API, using fallback', err);
+        // Manejo de error en caso de que la API falle
+        console.error('Error fetching mindicador.cl API, using default values', err);
         rate = currency.toLowerCase() === 'usd' ? 950.5 : 1050.2;
       }
     }
@@ -475,30 +487,29 @@ billingController.post('/nota-venta', async (req, res) => {
 
     if (!id_cliente || !monto_neto) return res.status(400).json({ error: 'Faltan campos obligatorios' });
 
-    // Validar rol (RF20)
-    let estadoNV = 'emitida';
-    if (userRole === 'Gerente') {
-      estadoNV = 'confirmada';
-    }
-
     const netoBase = Number(monto_neto);
+    if (tasa_cambio == null && moneda !== 'CLP') {
+      return res.status(400).json({ error: 'Falta factor de conversión' });
+    }
     const tasa = Number(tasa_cambio) || 1;
-    let netoCLP = netoBase * tasa;
 
     let montoDescuento = 0;
     if (descuento && descuento.valor > 0) {
       if (descuento.tipo === 'porcentaje') {
         if (descuento.valor > 100) return res.status(400).json({ error: 'Descuento porcentual excede el 100%' });
-        montoDescuento = netoCLP * (Number(descuento.valor) / 100);
+        montoDescuento = netoBase * (Number(descuento.valor) / 100);
       } else {
-        if (descuento.valor > netoCLP) return res.status(400).json({ error: 'Descuento fijo excede el monto neto' });
-        montoDescuento = Number(descuento.valor) * tasa;
+        if (descuento.valor > netoBase) return res.status(400).json({ error: 'Descuento fijo excede el monto neto' });
+        montoDescuento = Number(descuento.valor);
       }
     }
 
-    const netoConDescuento = netoCLP - montoDescuento;
+    const estadoNV = 'emitida';
+
+    const netoConDescuento = netoBase - montoDescuento;
     const impuesto = exento_iva ? 0 : netoConDescuento * 0.19;
     const total = netoConDescuento + impuesto;
+    const totalCLP = total * tasa;
 
     let monedaDb = await prisma.moneda.findFirst({ where: { codigo_moneda: moneda?.toUpperCase() || 'CLP' } });
     if (!monedaDb) {
@@ -512,60 +523,81 @@ billingController.post('/nota-venta', async (req, res) => {
 
     const nv = await prisma.nota_venta.create({
       data: {
-        id_ficha_cliente: ficha.id_ficha_cliente,
-        id_moneda: monedaDb!.id_moneda,
+        id_ficha_cliente: Number(ficha.id_ficha_cliente),
+        id_moneda: Number(monedaDb!.id_moneda),
         numero_nota_venta: `NVD-${Date.now()}`,
         fecha_emision: new Date(),
-        monto_neto: netoCLP,
-        descuento_aplicado: montoDescuento,
-        monto_impuesto: impuesto,
-        monto_total: total,
-        tipo_cambio_usado: tasa,
+        monto_neto: Number(netoConDescuento), // Monto original
+        descuento_aplicado: Number(montoDescuento),
+        monto_impuesto: Number(impuesto),
+        monto_total: Number(total),
+        tipo_cambio_usado: Number(tasa),
+        monto_convertido: Number(totalCLP), // Columna oculta de contabilidad interna (CLP)
         estado_nota_venta: estadoNV,
         estado_pago: 'pendiente',
-        observacion: (userRole === 'Secretaria' && montoDescuento > 0) ? 'PENDIENTE_APROBACION' : null
+        observacion: 'PENDIENTE_APROBACION'
       }
     });
 
     res.json(nv);
   } catch (error: any) {
-    console.error('ERROR EN NOTA VENTA:', error);
-    res.status(400).json({ error: 'Error al emitir nota de venta: Datos inválidos o restricción de estado.', details: error.message });
+    console.error('ERROR EXACTO EN NOTA VENTA:', error);
+    res.status(400).json({ error: error.message || error.toString() });
   }
 });
 
-// Agregar folios a documento
-billingController.put('/nota-venta/:id/folios', async (req, res) => {
+// Agregar documento asociado (Factura o Guía de Despacho)
+billingController.post('/documents', async (req, res) => {
   try {
-    const id_nota_venta = parseInt(req.params.id);
-    const { guias_despacho, facturas } = req.body;
+    const { id_nota_venta, tipo_documento, folio } = req.body;
 
-    const nv = await prisma.nota_venta.findUnique({ where: { id_nota_venta }});
-    if (!nv) return res.status(404).json({ error: 'Nota de venta no encontrada' });
-
-    let tipoFactura = await prisma.tipo_documento.findFirst({ where: { nombre_tipo_documento: 'Factura Electrónica' } });
-    if (!tipoFactura) {
-      tipoFactura = await prisma.tipo_documento.create({ data: { nombre_tipo_documento: 'Factura Electrónica', codigo_sii: '33', aplica_impuesto: true, estado_tipo: 'activo' }});
+    if (!id_nota_venta || !tipo_documento || !folio) {
+      return res.status(400).json({ error: 'Faltan campos obligatorios' });
     }
 
-    for (const folio of (facturas || [])) {
-      await prisma.documento_tributario.create({
-        data: {
-          id_ficha_cliente: nv.id_ficha_cliente,
-          id_nota_venta: nv.id_nota_venta,
-          id_tipo_documento: tipoFactura.id_tipo_documento,
-          id_moneda: nv.id_moneda,
-          folio_documento: folio,
-          fecha_emision: new Date(),
-          estado_documento: 'emitido'
+    const nv = await prisma.nota_venta.findUnique({ where: { id_nota_venta: parseInt(id_nota_venta, 10) } });
+    if (!nv) return res.status(404).json({ error: 'Nota de venta no encontrada' });
+
+    const isFactura = tipo_documento === 'factura';
+    const nombreTipo = isFactura ? 'Factura Electrónica' : 'Guía de Despacho Electrónica';
+
+    let tipoDocDb = await prisma.tipo_documento.findFirst({ where: { nombre_tipo_documento: nombreTipo } });
+    if (!tipoDocDb) {
+      // @ts-ignore - Some fields might be missing in older schemas but we provide defaults
+      tipoDocDb = await prisma.tipo_documento.create({ 
+        data: { 
+          nombre_tipo_documento: nombreTipo, 
+          estado_tipo_documento: 'activo' 
         }
       });
     }
 
-    res.json({ message: 'Folios agregados correctamente' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error al agregar folios' });
+    const newDoc = await prisma.documento_tributario.create({
+      data: {
+        id_ficha_cliente: nv.id_ficha_cliente,
+        id_nota_venta: nv.id_nota_venta,
+        id_tipo_documento: tipoDocDb.id_tipo_documento,
+        id_moneda: nv.id_moneda,
+        folio_documento: String(folio),
+        fecha_emision: new Date(),
+        estado_documento: 'emitido',
+        monto_neto: 0,
+        monto_impuesto: 0,
+        monto_total: 0
+      }
+    });
+
+    if (isFactura) {
+      await prisma.nota_venta.update({
+        where: { id_nota_venta: nv.id_nota_venta },
+        data: { estado_nota_venta: 'FACTURADA' }
+      });
+    }
+
+    res.json({ message: 'Documento vinculado correctamente', documento: newDoc });
+  } catch (error: any) {
+    console.error('ERROR EN VINCULACION:', error);
+    res.status(500).json({ error: error.message || 'Error interno del servidor al procesar el documento' });
   }
 });
 
@@ -575,32 +607,62 @@ billingController.post('/nota-venta/:id/anular', async (req, res) => {
     const id_nota_venta = parseInt(req.params.id);
     const { folio_nota_credito } = req.body;
 
-    const tipoFactura = await prisma.tipo_documento.findFirst({ where: { nombre_tipo_documento: 'Factura Electrónica' } });
-    
-    if (tipoFactura) {
-      const facturas = await prisma.documento_tributario.findMany({
-        where: { id_nota_venta, id_tipo_documento: tipoFactura.id_tipo_documento }
-      });
-
-      if (facturas.length > 0 && !folio_nota_credito) {
-        return res.status(400).json({ error: 'Debe ingresar el folio de la Nota de Crédito para anular una NV con facturas' });
-      }
-    }
-
-    const nv = await prisma.nota_venta.update({
+    const nvActual = await prisma.nota_venta.findUnique({
       where: { id_nota_venta },
-      data: {
-        estado_nota_venta: 'anulada',
-        monto_neto: 0,
-        monto_impuesto: 0,
-        monto_total: 0,
-        descuento_aplicado: 0,
-        fecha_anulacion: new Date(),
-        motivo_anulacion: folio_nota_credito ? `Nota de Crédito: ${folio_nota_credito}` : 'Anulación directa'
-      }
+      include: { documento_tributario: { include: { tipo_documento: true } }, asignacion_pago_cliente: true }
     });
 
-    res.json({ message: 'Nota de venta anulada', nota: nv });
+    if (!nvActual) return res.status(404).json({ error: 'Nota de venta no encontrada' });
+
+    const hasFactura = nvActual.documento_tributario.some(doc => 
+      doc.tipo_documento?.nombre_tipo_documento === 'Factura Electrónica' || doc.id_tipo_documento === 1
+    ) || nvActual.estado_nota_venta === 'FACTURADA';
+
+    const hasPayments = nvActual.estado_pago !== 'pendiente' || nvActual.asignacion_pago_cliente.length > 0;
+
+    if ((hasFactura || hasPayments) && !folio_nota_credito) {
+      return res.status(400).json({ error: 'Acción denegada por cumplimiento tributario. Requiere Nota de Crédito' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      if (folio_nota_credito) {
+        let tipoNC = await tx.tipo_documento.findFirst({ where: { nombre_tipo_documento: 'Nota de Crédito Electrónica' } });
+        if (!tipoNC) {
+          // @ts-ignore
+          tipoNC = await tx.tipo_documento.create({ 
+            data: { nombre_tipo_documento: 'Nota de Crédito Electrónica', estado_tipo_documento: 'activo' }
+          });
+        }
+        
+        await tx.documento_tributario.create({
+          data: {
+            id_ficha_cliente: nvActual.id_ficha_cliente,
+            id_nota_venta: nvActual.id_nota_venta,
+            id_tipo_documento: tipoNC.id_tipo_documento,
+            id_moneda: nvActual.id_moneda,
+            folio_documento: String(folio_nota_credito),
+            fecha_emision: new Date(),
+            estado_documento: 'emitido'
+          }
+        });
+      }
+
+      await tx.nota_venta.update({
+        where: { id_nota_venta },
+        data: {
+          estado_nota_venta: 'anulada',
+          monto_neto: 0,
+          monto_impuesto: 0,
+          monto_total: 0,
+          monto_convertido: 0,
+          descuento_aplicado: 0,
+          fecha_anulacion: new Date(),
+          motivo_anulacion: folio_nota_credito ? `Nota de Crédito: ${folio_nota_credito}` : 'Anulación directa'
+        }
+      });
+    });
+
+    res.json({ message: 'Nota de venta anulada' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al anular Nota de Venta' });

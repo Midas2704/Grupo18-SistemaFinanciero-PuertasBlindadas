@@ -10,17 +10,18 @@ dashboardController.get('/stats', async (req, res) => {
       where: { estado_ficha: 'activa' }
     });
 
-    const notasVenta = await prisma.nota_venta.aggregate({
-      _sum: {
-        monto_total: true
-      },
+    const notasVenta = await prisma.nota_venta.findMany({
+      select: { monto_total: true, monto_convertido: true },
       where: {
         estado_nota_venta: {
           in: ['emitida', 'aprobada', 'vigente']
         }
       }
     });
-    const ingresosTotales = notasVenta._sum.monto_total ? Number(notasVenta._sum.monto_total) : 0;
+    const ingresosTotales = notasVenta.reduce((acc, nv) => {
+      const val = nv.monto_convertido != null ? Number(nv.monto_convertido) : Number(nv.monto_total);
+      return acc + val;
+    }, 0);
 
     const cotizacionesPendientes = await prisma.cotizacion.count({
       where: {

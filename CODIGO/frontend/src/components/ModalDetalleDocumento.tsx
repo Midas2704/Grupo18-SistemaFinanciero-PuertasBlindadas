@@ -53,7 +53,7 @@ const ModalDetalleDocumento: React.FC<ModalDetalleDocumentoProps> = ({ activeMod
             let ancho = Number(det.medida_ancho_referencial || 0);
             let espesor = Number(det.medida_espesor_referencial || 0);
 
-            // Fallback: parse from descripcion_item_cotizado string e.g. "Puerta (120x80x5)"
+            // Default: parse from descripcion_item_cotizado string e.g. "Puerta (120x80x5)"
             if (alto === 0 && ancho === 0 && espesor === 0 && det.descripcion_item_cotizado) {
               const match = det.descripcion_item_cotizado.match(/(\d+(?:\.\d+)?)[xX](\d+(?:\.\d+)?)[xX](\d+(?:\.\d+)?)/);
               if (match) {
@@ -107,24 +107,43 @@ const ModalDetalleDocumento: React.FC<ModalDetalleDocumentoProps> = ({ activeMod
           )}
 
           {/* Resumen financiero */}
-          <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
-            <h4 className="font-semibold text-gray-700 mb-3">Resumen Financiero</h4>
-            {activeModal.tipo === 'cotizacion' ? (
-              <>
-                <div className="flex justify-between text-gray-600"><span>Subtotal Costos</span><span className="font-mono">${Number(activeModal.data.subtotal_costos_estimados || 0).toLocaleString('es-CL')}</span></div>
-                <div className="flex justify-between text-gray-600"><span>Precio Sugerido (Neto)</span><span className="font-mono">${Number(activeModal.data.precio_sugerido || 0).toLocaleString('es-CL')}</span></div>
-                {Number(activeModal.data.margen_esperado) > 0 && <div className="flex justify-between text-gray-600"><span>Margen</span><span className="font-mono">{Number(activeModal.data.margen_esperado)}%</span></div>}
-                <div className="flex justify-between font-bold text-gray-900 text-base border-t pt-2 mt-1"><span>Total Estimado (c/IVA)</span><span className="font-mono">${Number(activeModal.data.monto_total_estimado || 0).toLocaleString('es-CL')}</span></div>
-              </>
-            ) : (
-              <>
-                <div className="flex justify-between text-gray-600"><span>Monto Neto</span><span className="font-mono">${Number(activeModal.data.monto_neto || 0).toLocaleString('es-CL')}</span></div>
-                {Number(activeModal.data.descuento_aplicado) > 0 && <div className="flex justify-between text-orange-600"><span>Descuento Aplicado</span><span className="font-mono">-${Number(activeModal.data.descuento_aplicado).toLocaleString('es-CL')}</span></div>}
-                <div className="flex justify-between text-gray-600"><span>IVA (19%)</span><span className="font-mono">${Number(activeModal.data.monto_impuesto || 0).toLocaleString('es-CL')}</span></div>
-                <div className="flex justify-between font-bold text-gray-900 text-base border-t pt-2 mt-1"><span>Total Final</span><span className="font-mono">${Number(activeModal.data.monto_total || 0).toLocaleString('es-CL')}</span></div>
-              </>
-            )}
-          </div>
+          {(() => {
+            const isForeign = Number(activeModal.data.id_moneda) > 1;
+            const sym = isForeign ? 'USD ' : '$';
+            const isExento = Number(activeModal.data.monto_impuesto) === 0;
+
+            return (
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-semibold text-gray-700">Resumen Financiero</h4>
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${isExento ? 'bg-gray-200 text-gray-700' : 'bg-blue-100 text-blue-800'}`}>
+                    {isExento ? 'Exento de IVA' : 'Incluye IVA'}
+                  </span>
+                </div>
+                {activeModal.tipo === 'cotizacion' ? (
+                  <>
+                    <div className="flex justify-between text-gray-600"><span>Subtotal Costos</span><span className="font-mono">{sym}{Number(activeModal.data.subtotal_costos_estimados || 0).toLocaleString('es-CL')}</span></div>
+                    <div className="flex justify-between text-gray-600"><span>Precio Sugerido (Neto)</span><span className="font-mono">{sym}{Number(activeModal.data.precio_sugerido || 0).toLocaleString('es-CL')}</span></div>
+                    {Number(activeModal.data.margen_esperado) > 0 && <div className="flex justify-between text-gray-600"><span>Margen</span><span className="font-mono">{Number(activeModal.data.margen_esperado)}%</span></div>}
+                    <div className="flex justify-between font-bold text-gray-900 text-base border-t pt-2 mt-1"><span>Total Estimado</span><span className="font-mono">{sym}{Number(activeModal.data.monto_total_estimado || 0).toLocaleString('es-CL')}</span></div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between text-gray-600"><span>Monto Neto</span><span className="font-mono">{sym}{Number(activeModal.data.monto_neto || 0).toLocaleString('es-CL')}</span></div>
+                    {Number(activeModal.data.descuento_aplicado) > 0 && <div className="flex justify-between text-orange-600"><span>Descuento Aplicado</span><span className="font-mono">-{sym}{Number(activeModal.data.descuento_aplicado).toLocaleString('es-CL')}</span></div>}
+                    <div className="flex justify-between text-gray-600"><span>IVA (19%)</span><span className="font-mono">{sym}{Number(activeModal.data.monto_impuesto || 0).toLocaleString('es-CL')}</span></div>
+                    <div className="flex justify-between font-bold text-gray-900 text-base border-t pt-2 mt-1"><span>Total Final</span><span className="font-mono">{sym}{Number(activeModal.data.monto_total || 0).toLocaleString('es-CL')}</span></div>
+                  </>
+                )}
+                {isForeign && (
+                  <div className="border-t pt-3 mt-3">
+                    <div className="text-lg font-bold text-slate-800">Monto Original: {Number(activeModal.data.monto_total || activeModal.data.monto_total_estimado || 0).toLocaleString('es-CL')} {activeModal.data.moneda?.codigo_moneda || 'USD'}</div>
+                    <div className="text-sm font-medium text-slate-500">Equivalente Contable: ${Number(activeModal.data.monto_convertido || 0).toLocaleString('es-CL')} CLP</div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Pagos de la Nota de Venta (Solo NV) */}
           {activeModal.tipo === 'nota_venta' && (
@@ -137,13 +156,24 @@ const ModalDetalleDocumento: React.FC<ModalDetalleDocumentoProps> = ({ activeMod
               {(() => {
                 const totalPagadoNV = activeModal.data.asignacion_pago_cliente?.reduce((sum: number, asig: any) => sum + Number(asig.monto_asignado), 0) || 0;
                 const saldoNV = Math.max(0, Number(activeModal.data.monto_total) - totalPagadoNV);
+                const isForeign = Number(activeModal.data.id_moneda) > 1;
+                const sigla = activeModal.data.moneda?.codigo_moneda || 'USD';
+                const factorConv = Number(activeModal.data.monto_total) > 0 ? Number(activeModal.data.monto_convertido) / Number(activeModal.data.monto_total) : 1;
+
                 return (
                   <div className="flex gap-4 mb-4">
                     <div className="bg-green-50 text-green-800 px-4 py-2 rounded-lg text-sm border border-green-100 flex-1">
-                      <span className="font-semibold">Total Pagado:</span> ${totalPagadoNV.toLocaleString('es-CL', { maximumFractionDigits: 0 })}
+                      <span className="font-semibold">Total Pagado:</span> {isForeign ? '' : '$'}{totalPagadoNV.toLocaleString('es-CL', { maximumFractionDigits: 0 })} {isForeign ? sigla : ''}
                     </div>
-                    <div className="bg-orange-50 text-orange-800 px-4 py-2 rounded-lg text-sm border border-orange-100 flex-1">
-                      <span className="font-semibold">Falta por Pagar (Saldo):</span> ${saldoNV.toLocaleString('es-CL', { maximumFractionDigits: 0 })}
+                    <div className="bg-orange-50 text-orange-800 px-4 py-2 rounded-lg text-sm border border-orange-100 flex-1 flex items-center">
+                      {isForeign ? (
+                        <div className="flex flex-col">
+                          <span><span className="font-semibold">Falta por Pagar (Original):</span> {saldoNV.toLocaleString('es-CL', { maximumFractionDigits: 0 })} {sigla}</span>
+                          <span className="text-xs mt-1 text-orange-700 italic"><span className="font-semibold">Falta por Pagar (CLP):</span> ${Math.round(saldoNV * factorConv).toLocaleString('es-CL')} CLP</span>
+                        </div>
+                      ) : (
+                        <span><span className="font-semibold">Falta por Pagar:</span> ${saldoNV.toLocaleString('es-CL', { maximumFractionDigits: 0 })} CLP</span>
+                      )}
                     </div>
                   </div>
                 );
@@ -189,6 +219,66 @@ const ModalDetalleDocumento: React.FC<ModalDetalleDocumentoProps> = ({ activeMod
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Documentos Asociados (Solo NV) */}
+          {activeModal.tipo === 'nota_venta' && (
+            <div className="pt-4 border-t border-gray-200">
+              <h4 className="font-semibold text-gray-900 mb-3 text-sm">Documentos Asociados (Folios)</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white border border-gray-200 p-3 rounded-lg shadow-sm">
+                  <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Guía de Despacho</label>
+                  <div className="flex gap-2">
+                    <input type="text" id="input_guia" placeholder="Ej: 99402" className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-none" />
+                    <button onClick={async () => {
+                      const input = document.getElementById('input_guia') as HTMLInputElement;
+                      if (!input.value) return;
+                      try {
+                        const res = await fetch('http://localhost:3000/api/finanzas/billing/documents', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id_nota_venta: activeModal.data.id_nota_venta, tipo_documento: 'guia_despacho', folio: input.value })
+                        });
+                        const data = await res.json();
+                        if (res.ok) { alert('Guía de Despacho vinculada correctamente'); input.value = ''; }
+                        else { alert(data.error || 'Error al vincular Guía'); }
+                      } catch (e) { alert('Error de conexión'); }
+                    }} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition-colors">Vincular</button>
+                  </div>
+                </div>
+                
+                <div className="bg-white border border-gray-200 p-3 rounded-lg shadow-sm">
+                  <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Factura Electrónica</label>
+                  <div className="flex gap-2">
+                    <input type="text" id="input_factura" placeholder="Ej: 1544" className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-none" />
+                    <button onClick={async () => {
+                      const input = document.getElementById('input_factura') as HTMLInputElement;
+                      if (!input.value) return;
+                      try {
+                        const res = await fetch('http://localhost:3000/api/finanzas/billing/documents', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id_nota_venta: activeModal.data.id_nota_venta, tipo_documento: 'factura', folio: input.value })
+                        });
+                        const data = await res.json();
+                        if (res.ok) { alert('Factura vinculada correctamente'); input.value = ''; }
+                        else { alert(data.error || 'Error al vincular Factura'); }
+                      } catch (e) { alert('Error de conexión'); }
+                    }} className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded transition-colors">Vincular</button>
+                  </div>
+                </div>
+              </div>
+              
+              {activeModal.data.documento_tributario && activeModal.data.documento_tributario.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {activeModal.data.documento_tributario.map((doc: any, idx: number) => (
+                    <span key={idx} className="px-2 py-1 bg-gray-100 border border-gray-300 text-gray-700 text-xs rounded-md font-medium">
+                      {doc.tipo_documento?.nombre_tipo_documento || 'Documento'} {doc.folio_documento}
+                    </span>
+                  ))}
                 </div>
               )}
             </div>

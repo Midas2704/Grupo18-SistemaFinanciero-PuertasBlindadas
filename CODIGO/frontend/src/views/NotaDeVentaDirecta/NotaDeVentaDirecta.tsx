@@ -17,6 +17,7 @@ const NotaDeVentaDirecta: React.FC = () => {
   const [montoBase, setMontoBase] = useState<number>(0);
   const [moneda, setMoneda] = useState('CLP');
   const [tasaCambio, setTasaCambio] = useState<number>(1);
+  const [tasaManualHabilitada, setTasaManualHabilitada] = useState(false);
   const [exentoIva, setExentoIva] = useState(false);
   const [aplicarDescuento, setAplicarDescuento] = useState(false);
   const [descuentoTipo, setDescuentoTipo] = useState<'fijo' | 'porcentaje'>('porcentaje');
@@ -46,11 +47,22 @@ const NotaDeVentaDirecta: React.FC = () => {
   useEffect(() => {
     if (moneda !== 'CLP') {
       fetch(`http://localhost:3000/api/finanzas/billing/exchange-rate/${moneda}`)
-        .then(res => res.json())
-        .then(data => setTasaCambio(data.rate))
-        .catch(e => console.error('Error fetching exchange rate', e));
+        .then(res => {
+          if (!res.ok) throw new Error('API request failed');
+          return res.json();
+        })
+        .then(data => {
+          setTasaCambio(data.rate);
+          setTasaManualHabilitada(false);
+        })
+        .catch(e => {
+          console.error('Error fetching exchange rate', e);
+          alert('API del Banco Central no responde. Ingrese tipo de cambio manualmente.');
+          setTasaManualHabilitada(true);
+        });
     } else {
       setTasaCambio(1);
+      setTasaManualHabilitada(false);
     }
   }, [moneda]);
 
@@ -223,9 +235,10 @@ const NotaDeVentaDirecta: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tasa (CLP)</label>
                   <input 
                     type="number" 
-                    disabled
-                    value={tasaCambio}
-                    className="w-full p-2.5 bg-gray-100 text-gray-500 border border-gray-200 rounded-lg outline-none cursor-not-allowed"
+                    disabled={!tasaManualHabilitada}
+                    value={tasaCambio || ''}
+                    onChange={(e) => setTasaCambio(Number(e.target.value))}
+                    className={`w-full p-2.5 border rounded-lg outline-none ${!tasaManualHabilitada ? 'bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed' : 'bg-white border-gray-300 focus:ring-2 focus:ring-primary-500'}`}
                   />
                 </div>
               </div>

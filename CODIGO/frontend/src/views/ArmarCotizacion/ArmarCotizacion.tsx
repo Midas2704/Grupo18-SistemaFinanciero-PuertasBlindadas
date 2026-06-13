@@ -327,7 +327,7 @@ const ArmarCotizacion: React.FC = () => {
                     min="0" max="99" step="1"
                     onInput={(e) => { e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, ''); }}
                     value={margen}
-                    onChange={e => setMargen(Math.round(Number(e.target.value)))}
+                    onChange={e => setMargen(Math.min(99, Math.max(0, Math.round(Number(e.target.value)))))}
                     className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
                   />
                 </div>

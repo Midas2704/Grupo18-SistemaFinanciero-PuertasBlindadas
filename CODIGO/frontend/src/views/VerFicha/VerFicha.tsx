@@ -37,7 +37,6 @@ const VerFicha: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   const [activeModal, setActiveModal] = useState<{ tipo: 'cotizacion' | 'nota_venta', data: any } | null>(null);
-  const [folioInput, setFolioInput] = useState('');
   const [folioNC, setFolioNC] = useState('');
   const [showNCInput, setShowNCInput] = useState(false);
   const [modalMsg, setModalMsg] = useState({ text: '', type: '' });
@@ -85,29 +84,13 @@ const VerFicha: React.FC = () => {
         ? nv
         : { ...nv, ficha_cliente: fichaClienteStub };
       setActiveModal({ tipo: 'nota_venta', data: enriched });
-      setFolioInput('');
       setFolioNC('');
       setShowNCInput(false);
       setModalMsg({ text: '', type: '' });
     }
   };
 
-  const handleAddFolio = async () => {
-    if (!folioInput) return;
-    try {
-      const res = await fetch(`http://localhost:3000/api/finanzas/billing/nota-venta/${activeModal?.data.id_nota_venta}/folios`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ facturas: [folioInput] })
-      });
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error);
-      setModalMsg({ text: 'Folio agregado exitosamente', type: 'success' });
-      setFolioInput('');
-    } catch (e: any) {
-      setModalMsg({ text: e.message, type: 'error' });
-    }
-  };
+
 
   const handleAnular = async () => {
     if (!window.confirm('¿Está seguro de anular esta Nota de Venta?')) return;
@@ -126,6 +109,13 @@ const VerFicha: React.FC = () => {
       }
       setModalMsg({ text: 'Nota de Venta anulada', type: 'success' });
       setActiveModal(prev => prev ? { ...prev, data: { ...prev.data, estado_nota_venta: 'anulada' } } : null);
+      setData(prev => prev ? { 
+        ...prev, 
+        resumen_dashboard: {
+          ...prev.resumen_dashboard,
+          notas_venta: prev.resumen_dashboard.notas_venta.map((nv: any) => nv.id_nota_venta === activeModal?.data.id_nota_venta ? { ...nv, estado_nota_venta: 'anulada' } : nv)
+        }
+      } : null);
     } catch (e: any) {
       setModalMsg({ text: e.message, type: 'error' });
     }
@@ -328,22 +318,8 @@ const VerFicha: React.FC = () => {
               </div>
             )}
             <h4 className="font-semibold text-gray-900 mb-4">Administración del Documento</h4>
-            <div className="flex gap-4">
-              <div className="flex-1 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Agregar Folio (Factura/Guía)</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Ej. F-12345"
-                    value={folioInput}
-                    onChange={e => setFolioInput(e.target.value)}
-                    className="flex-1 p-2 border border-gray-300 rounded outline-none text-sm"
-                  />
-                  <button onClick={handleAddFolio} className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium">Agregar</button>
-                </div>
-              </div>
-
-              <div className="flex-1 bg-red-50 p-4 rounded-lg border border-red-100 flex flex-col justify-center">
+            <div className="flex justify-end">
+              <div className="w-1/2 bg-red-50 p-4 rounded-lg border border-red-100 flex flex-col justify-center">
                 {showNCInput && (
                   <div className="mb-3">
                     <label className="block text-sm font-medium text-red-800 mb-1">Folio Nota de Crédito Obligatorio:</label>

@@ -73,24 +73,68 @@ const BandejaAprobacionGerencia: React.FC = () => {
         body: tipo === 'quotes' ? JSON.stringify({ plazo_pago: plazoPago }) : undefined
       });
       if (!res.ok) throw new Error('Error al aprobar');
+      const data = await res.json();
       setMensaje({ text: `Documento aprobado exitosamente`, type: 'success' });
       setApprovingQuoteId(null);
       fetchPendientes();
       fetchHistory();
+      
+      // Despliegue de detalle
+      if (data.documento) {
+        setActiveModal({ tipo: 'nota_venta', data: data.documento });
+      }
     } catch (e: any) {
       setMensaje({ text: e.message, type: 'error' });
       setApprovingQuoteId(null);
     }
   };
 
-  const handleReject = async (tipo: 'quotes' | 'nota-venta', id: number) => {
-    if (!window.confirm('¿Está seguro de rechazar este documento?')) return;
+  const handleReject = async (tipo: 'quotes' | 'nota-venta', item: any) => {
+    let folioNotaCredito = '';
+    const id = tipo === 'quotes' ? item.id_cotizacion : item.id_nota_venta;
+
+    if (tipo === 'nota-venta') {
+      // Validar requerimiento de nota de credito
+      const hasFactura = item.documento_tributario?.some((doc: any) => 
+        doc.tipo_documento?.nombre_tipo_documento === 'Factura Electrónica' || doc.id_tipo_documento === 1 /* default */
+      ) || item.estado_nota_venta === 'FACTURADA';
+
+      const hasPayments = item.estado_pago !== 'pendiente' || (item.asignacion_pago_cliente && item.asignacion_pago_cliente.length > 0);
+
+      if (hasFactura || hasPayments) {
+        const folio = window.prompt('Venta facturada o con pagos registrados. Ingrese folio de Nota de Crédito SII:');
+        if (!folio || folio.trim() === '') {
+          alert('Acción denegada por cumplimiento tributario');
+          return;
+        }
+        folioNotaCredito = folio.trim();
+      } else {
+        if (!window.confirm('¿Está seguro de rechazar/anular este documento?')) return;
+      }
+    } else {
+      if (!window.confirm('¿Está seguro de rechazar este documento?')) return;
+    }
+
     try {
-      const res = await fetch(`http://localhost:3000/api/finanzas/billing/${tipo}/${id}/reject`, {
-        method: 'POST'
+      const endpoint = tipo === 'quotes' ? `/quotes/${id}/reject` : `/nota-venta/${id}/anular`;
+      const res = await fetch(`http://localhost:3000/api/finanzas/billing${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folio_nota_credito: folioNotaCredito })
       });
-      if (!res.ok) throw new Error('Error al rechazar');
-      setMensaje({ text: `Documento rechazado exitosamente`, type: 'success' });
+      if (!res.ok) {
+        const errData = await res.json().catch(()=>({}));
+        throw new Error(errData.error || 'Error al rechazar/anular');
+      }
+      setMensaje({ text: `Documento rechazado/anulado exitosamente`, type: 'success' });
+      // Refresh table state
+      if (tipo === 'nota-venta') {
+        setNotasVenta(prev => prev.filter(nv => nv.id_nota_venta !== id));
+        setHistoryNvs(prev => prev.map(nv => nv.id_nota_venta === id ? { ...nv, estado_nota_venta: 'anulada' } : nv));
+      } else {
+        setCotizaciones(prev => prev.filter(c => c.id_cotizacion !== id));
+        setHistoryCots(prev => prev.map(c => c.id_cotizacion === id ? { ...c, estado_cotizacion: 'rechazada' } : c));
+      }
       fetchPendientes();
       fetchHistory();
     } catch (e: any) {
@@ -241,7 +285,7 @@ const BandejaAprobacionGerencia: React.FC = () => {
                             <button onClick={() => handleApprove('quotes', cot.id_cotizacion)} className="p-2 bg-green-100 text-green-700 hover:bg-green-200 rounded" title="Aprobar">
                               <Check className="w-4 h-4" />
                             </button>
-                            <button onClick={() => handleReject('quotes', cot.id_cotizacion)} className="p-2 bg-red-100 text-red-700 hover:bg-red-200 rounded" title="Rechazar">
+                            <button onClick={() => handleReject('quotes', cot)} className="p-2 bg-red-100 text-red-700 hover:bg-red-200 rounded" title="Rechazar">
                               <X className="w-4 h-4" />
                             </button>
                           </>
@@ -288,7 +332,7 @@ const BandejaAprobacionGerencia: React.FC = () => {
                         <button onClick={() => handleApprove('nota-venta', nv.id_nota_venta)} className="p-2 bg-green-100 text-green-700 hover:bg-green-200 rounded" title="Aprobar">
                           <Check className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleReject('nota-venta', nv.id_nota_venta)} className="p-2 bg-red-100 text-red-700 hover:bg-red-200 rounded" title="Rechazar">
+                        <button onClick={() => handleReject('nota-venta', nv)} className="p-2 bg-red-100 text-red-700 hover:bg-red-200 rounded" title="Rechazar">
                           <X className="w-4 h-4" />
                         </button>
                       </td>
