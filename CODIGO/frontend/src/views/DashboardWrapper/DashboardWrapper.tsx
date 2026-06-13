@@ -47,8 +47,9 @@ const DashboardWrapper: React.FC = () => {
         </nav>
 
         <div className="p-6 border-t border-gray-800 text-sm text-gray-500">
-          Módulo ERP v1.0 <br />
+          Módulo Finanzas <br />
           © 2026 Puertas Blindadas
+          Producto desarrollado por MidasSupremacySPA
         </div>
       </aside>
 
