@@ -6,7 +6,7 @@ Repositorio oficial del Módulo de Finanzas del ERP para Puertas Blindadas.
 
 El proyecto está dividido en dos partes principales dentro de la carpeta `/CODIGO`:
 
-- **/CODIGO/controladores**: API REST construida con Node.js, Express, TypeScript y Prisma ORM. Gestiona la lógica de negocio, integración con base de datos PostgreSQL (Raspberry Pi) y el módulo de transacciones financieras.
+- **/CODIGO/Controladores**: API REST construida con Node.js, Express, TypeScript y Prisma ORM. Gestiona la lógica de negocio, integración con base de datos PostgreSQL (Raspberry Pi) y el módulo de transacciones financieras.
 - **/CODIGO/Vistas**: Aplicación web interactiva construida con React, TypeScript, Vite y Tailwind CSS. Incluye el sistema de diseño y las interfaces para gestión de cotizaciones, notas de venta, clientes y dashboard principal.
 
 ## Tecnologías Utilizadas
