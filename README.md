@@ -60,8 +60,23 @@ Adicionalmente, los scripts para la carga inicial de datos (seeding) masivos o d
 
 ## Documentación Adicional
 
-- Documento 0
-- Incremento 1
+El repositorio incluye la documentación oficial exigida a lo largo de las distintas fases del proyecto, separada en las siguientes carpetas:
+
+### 📁 /Documento 0
+Contiene todos los entregables iniciales relacionados con la formulación del proyecto, levantamiento de requerimientos y conformación del equipo.
+- **Documentos principales:** Informe inicial de requerimientos (`Documento0_EquipoFinanzas...docx`) y la presentación del pitch inicial (`Sistema Financiero Puertas Blindadas.pptx`).
+- **Validación:** Evidencia de la aceptación de requerimientos por parte del cliente (`Correo Aceptacion...png`).
+- **Subcarpetas:** `CV` (Currículums del equipo) y `Anexo`.
+
+### 📁 /Incremento1
+Contiene todos los artefactos, informes y diagramas entregados correspondientes al primer incremento de desarrollo.
+- **Documentos principales:** El informe oficial del incremento (`Informe Incremento 1...docx`) y la presentación ejecutiva de los avances (`Puertas Blindadas Sistema financiero.pptx`).
+- **Multimedia:** Video de demostración funcional del primer incremento (`Demostracion Incremento 1.mp4`).
+- **Subcarpetas de Arquitectura y Diseño:**
+  - `Diagramas Casos de Uso`: Modelado de interacción de los actores con el sistema.
+  - `Diagramas de Secuencia`: Flujo de operaciones del sistema financiero.
+  - `Otros Diagramas`: Diseños de arquitectura adicionales.
+  - `Retrospectiva`: Documentación sobre la retrospectiva ágil del equipo en esta iteración.
 
 ---
 *Desarrollado bajo los estándares y lineamientos de la Facultad de Ingeniería.*
