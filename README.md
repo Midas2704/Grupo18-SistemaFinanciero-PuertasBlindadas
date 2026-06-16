@@ -27,7 +27,7 @@ cd Grupo18-SistemaFinanciero-PuertasBlindadas
 
 ### 2. Configurar y Ejecutar la capa de controladores
 ```bash
-cd CODIGO/controladores
+cd CODIGO/Controladores
 npm install
 
 # Configurar variables de entorno requeridas en el archivo .env
@@ -51,12 +51,12 @@ La aplicación web estará disponible por defecto en `http://localhost:5173`.
 
 ## Capa de Persistencia y Scripts (Prisma)
 
-El proyecto utiliza Prisma ORM. Algunos de los comandos y scripts útiles disponibles en `/CODIGO/controladores`:
+El proyecto utiliza Prisma ORM. Algunos de los comandos y scripts útiles disponibles en `/CODIGO/Controladores`:
 - `npx prisma db pull`: Sincroniza el esquema de Prisma desde la base de datos externa.
 - `npx prisma generate`: Genera el cliente de Prisma actualizado.
 - `npx prisma studio`: Abre la interfaz visual de la base de datos en el navegador.
 
-Adicionalmente, los scripts para la carga inicial de datos (seeding) masivos o de limpieza se encuentran ubicados en `CODIGO/controladores/scripts` (ej. `massive_seed_v2.js`) y `CODIGO/controladores/prisma/seed.ts`.
+Adicionalmente, los scripts para la carga inicial de datos (seeding) masivos o de limpieza se encuentran ubicados en `CODIGO/Controladores/scripts` (ej. `massive_seed_v2.js`) y `CODIGO/Controladores/prisma/seed.ts`.
 
 ## Documentación Adicional
 
