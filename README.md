@@ -6,14 +6,14 @@ Repositorio oficial del Módulo de Finanzas del ERP para Puertas Blindadas.
 
 El proyecto está dividido en dos partes principales dentro de la carpeta `/CODIGO`:
 
-- **/CODIGO/controladores (Backend)**: API REST construida con Node.js, Express, TypeScript y Prisma ORM. Gestiona la lógica de negocio, integración con base de datos PostgreSQL (Raspberry Pi) y el módulo de transacciones financieras.
-- **/CODIGO/Vistas (Frontend)**: Aplicación web interactiva construida con React, TypeScript, Vite y Tailwind CSS. Incluye el sistema de diseño y las interfaces para gestión de cotizaciones, notas de venta, clientes y dashboard principal.
+- **/CODIGO/controladores**: API REST construida con Node.js, Express, TypeScript y Prisma ORM. Gestiona la lógica de negocio, integración con base de datos PostgreSQL (Raspberry Pi) y el módulo de transacciones financieras.
+- **/CODIGO/Vistas**: Aplicación web interactiva construida con React, TypeScript, Vite y Tailwind CSS. Incluye el sistema de diseño y las interfaces para gestión de cotizaciones, notas de venta, clientes y dashboard principal.
 
 ## Tecnologías Utilizadas
 
-- **Frontend**: React 19, Vite, Tailwind CSS, React Router DOM, Lucide React.
-- **Backend**: Node.js, Express, TypeScript, Prisma (ORM), PostgreSQL.
-- **Base de Datos**: PostgreSQL (Desplegada en entorno local/Raspberry Pi).
+- **Capa de Vistas**: React 19, Vite, Tailwind CSS, React Router DOM, Lucide React.
+- **Capa de Controladores**: Node.js, Express, TypeScript, Prisma (ORM), PostgreSQL.
+- **Capa de Persistencia**: PostgreSQL (Desplegada en entorno local/Raspberry Pi).
 
 ## Guía de Instalación y Ejecución
 
@@ -25,7 +25,7 @@ git clone https://github.com/Midas2704/Grupo18-SistemaFinanciero-PuertasBlindada
 cd Grupo18-SistemaFinanciero-PuertasBlindadas
 ```
 
-### 2. Configurar y Ejecutar el Backend (Controladores)
+### 2. Configurar y Ejecutar la capa de controladores
 ```bash
 cd CODIGO/controladores
 npm install
@@ -38,7 +38,7 @@ npm run dev
 ```
 El backend estará disponible por defecto en `http://localhost:3000`.
 
-### 3. Configurar y Ejecutar el Frontend (Vistas)
+### 3. Configurar y Ejecutar el la capa de vistas
 Abre una nueva pestaña en tu terminal y ejecuta:
 ```bash
 cd CODIGO/Vistas
@@ -49,7 +49,7 @@ npm run dev
 ```
 La aplicación web estará disponible por defecto en `http://localhost:5173`.
 
-## Base de Datos y Scripts (Prisma)
+## Capa de Persistencia y Scripts (Prisma)
 
 El proyecto utiliza Prisma ORM. Algunos de los comandos y scripts útiles disponibles en `/CODIGO/controladores`:
 - `npx prisma db pull`: Sincroniza el esquema de Prisma desde la base de datos externa.
