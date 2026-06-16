@@ -1,17 +1,3 @@
--- SQL completo rearmado desde cero - tres schemas completos + Finanzas Core 50
--- Proyecto: BD Modulo Finanzas Core defendible #AseguremosC
--- Versión: v1 combinada full schemas inline FK
--- Base de Finanzas: SQL Finanzas Core PostgreSQL v1/v2 rearmado, 50 tablas propias.
--- Base de Inventario/Terreno: SQL conjunto completo rearmado, con identificadores acortados.
--- Objetivo:
---   1) Crear schemas finanzas, inventario y terreno desde cero.
---   2) Mantener las 50 tablas vigentes de Finanzas.
---   3) Incluir todas las tablas disponibles de Inventario y Terreno del SQL conjunto.
---   4) Declarar PK, UNIQUE, CHECK y FK dentro de cada CREATE TABLE.
---   5) Evitar identificadores sobre 63 caracteres para prevenir truncamientos/rollback.
---
--- ADVERTENCIA: este script elimina los schemas finanzas, inventario y terreno.
--- Ejecutar en base limpia o de prueba.
 
 DROP SCHEMA IF EXISTS finanzas CASCADE;
 DROP SCHEMA IF EXISTS inventario CASCADE;
