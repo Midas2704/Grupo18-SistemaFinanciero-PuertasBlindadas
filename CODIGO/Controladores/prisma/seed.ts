@@ -188,7 +188,7 @@ async function main() {
         `, id_cot, tipoProdIdx + 1, tipos_productos[tipoProdIdx], qty, subtotal);
     }
 
-    // Generate Notes with random dates for status simulations
+    // Generar notas de venta con fechas aleatorias para simular estados
     const numNotas = Math.floor(Math.random() * 3) + 1;
     for(let nv = 0; nv < numNotas; nv++) {
         const montoNeto = Math.floor(Math.random() * 2700000) + 800000;
@@ -213,7 +213,7 @@ async function main() {
     }
   }
 
-  // Simulate payments and debts
+  // Simular pagos y deudas
   for (let i = 0; i < notasVentaTotales.length; i++) {
     const nv = notasVentaTotales[i];
     
