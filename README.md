@@ -2,9 +2,12 @@
 
 Repositorio oficial del Módulo de Finanzas del ERP para Puertas Blindadas.
 
-#Integrantes:
-- Angella Sanchez Lopez 
-- 
+# Integrantes:
+- Sebastián Benjamín Bravo Núñez
+- Gianella Belén Catalán Canales  
+- Vicente Andrés Hernández Olea
+- Daniella Rosa Catalina Lecanda Garnham 
+- Angella Javiera Sánchez Lopéz 
 
 ## Estructura del Proyecto
 
