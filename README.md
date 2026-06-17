@@ -1,8 +1,9 @@
 # Sistema Financiero - Puertas Blindadas (Grupo 18)
 
 Repositorio oficial del Módulo de Finanzas del ERP para Puertas Blindadas.
-Integrantes:
-- Angella Sanchez Lopez 20.776.101-k
+
+#Integrantes:
+- Angella Sanchez Lopez 
 - 
 
 ## Estructura del Proyecto
