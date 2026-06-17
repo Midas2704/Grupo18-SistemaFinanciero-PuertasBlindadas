@@ -78,7 +78,7 @@ Contiene todas las herramientas, informes y diagramas entregados correspondiente
 - **Subcarpetas de Arquitectura y Diseño:**
   - `Diagramas Casos de Uso`: Modelamiento de la interacción de los actores con el sistema.
   - `Diagramas de Secuencia`: Flujo de operaciones internos del sistema financiero.
-  - `Otros Diagramas`: Diseños de arquitectura adicionales.
+  - `Anexo`: Diseños de arquitectura adicionales, incluyendo diagramas de componentes, despliegue, navegación y MERE.
   - `Retrospectiva`: Documentación sobre la retrospectiva ágil del equipo en esta iteración.
 
 ---
