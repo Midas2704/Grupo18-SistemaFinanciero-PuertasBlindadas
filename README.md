@@ -1,4 +1,4 @@
-# Sistema Financiero - Puertas Blindadas (Grupo 18)
+# Modulo Financiero - Puertas Blindadas (Grupo 18)
 
 Repositorio oficial del Módulo de Finanzas del ERP para Puertas Blindadas.
 
