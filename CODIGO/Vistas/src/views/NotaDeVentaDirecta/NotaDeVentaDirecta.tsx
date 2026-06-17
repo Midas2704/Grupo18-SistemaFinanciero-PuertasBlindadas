@@ -10,7 +10,7 @@ interface Cliente {
 const NotaDeVentaDirecta: React.FC = () => {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   
-  // Form State
+  // Estado del formulario
   const [idClienteInput, setIdClienteInput] = useState('');
   const [dropdownClienteOpen, setDropdownClienteOpen] = useState(false);
 
@@ -22,7 +22,7 @@ const NotaDeVentaDirecta: React.FC = () => {
   const [aplicarDescuento, setAplicarDescuento] = useState(false);
   const [descuentoTipo, setDescuentoTipo] = useState<'fijo' | 'porcentaje'>('porcentaje');
   const [descuentoValor, setDescuentoValor] = useState<number>(0);
-  const [userRole, setUserRole] = useState('Secretaria'); // Mocked user role for testing
+  const [userRole, setUserRole] = useState('Secretaria'); // Rol de usuario simulado para pruebas
   
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState({ text: '', type: '' });
@@ -66,7 +66,7 @@ const NotaDeVentaDirecta: React.FC = () => {
     }
   }, [moneda]);
 
-  // Calculations
+  // Cálculos
   const netoCLP = montoBase * tasaCambio;
   
   let montoDescuentoCLP = 0;
@@ -89,7 +89,7 @@ const NotaDeVentaDirecta: React.FC = () => {
     e.preventDefault();
     setMensaje({ text: '', type: '' });
 
-    const idVal = idClienteInput.split(' - ')[0]; // We assume the format is ID - RUT - RazonSocial
+    const idVal = idClienteInput.split(' - ')[0]; // Asumimos el formato ID - RUT - Razon Social
     
     if (!idVal) return setMensaje({ text: 'Seleccione un cliente.', type: 'error' });
     if (montoBase <= 0) return setMensaje({ text: 'El monto base debe ser mayor a 0.', type: 'error' });
@@ -120,7 +120,7 @@ const NotaDeVentaDirecta: React.FC = () => {
       if (!res.ok) throw new Error(data.error);
 
       setMensaje({ text: `Nota de Venta ${data.numero_nota_venta} emitida exitosamente.`, type: 'success' });
-      // Reset form
+      // Limpiar formulario
       setMontoBase(0);
       setAplicarDescuento(false);
       setIdClienteInput('');

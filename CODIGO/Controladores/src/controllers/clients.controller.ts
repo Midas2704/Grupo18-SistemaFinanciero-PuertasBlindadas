@@ -48,7 +48,7 @@ clientsController.get('/', async (req, res) => {
         telefono: c.telefono_financiero,
         correo: c.correo_financiero,
         saldoDeudor: saldoDeudor > 0 ? saldoDeudor : 0,
-        isMoroso: false // Default
+        isMoroso: false // Por defecto
       };
     });
 
@@ -57,7 +57,7 @@ clientsController.get('/', async (req, res) => {
     }
 
     if (morosos === 'true') {
-      // Find clients that have expired invoices
+      // Buscar clientes que tienen facturas vencidas
       const expiredInvoices = await prisma.nota_venta.findMany({
         where: {
           id_ficha_cliente: { in: result.map(c => Number(c.id_ficha_cliente)) },
@@ -69,10 +69,10 @@ clientsController.get('/', async (req, res) => {
       const morososIds = new Set(expiredInvoices.map(nv => nv.id_ficha_cliente));
       result = result.filter(c => morososIds.has(Number(c.id_ficha_cliente)));
       
-      // Update the flag
+      // Actualizar el estado
       result = result.map(c => ({ ...c, isMoroso: true }));
     } else {
-      // If we still want to show the flag even if not filtering by morosos
+      // Mostrar el estado incluso si no se filtra por morosos
       const expiredInvoices = await prisma.nota_venta.findMany({
         where: {
           id_ficha_cliente: { in: result.map(c => Number(c.id_ficha_cliente)) },

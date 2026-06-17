@@ -15,7 +15,7 @@ async function main() {
   for (let i = 1; i <= 15; i++) {
     const rut = `${rutBase + i}-K`;
     
-    // Check if exists
+    // Verificar si existe
     const exists = await prisma.cliente.findUnique({ where: { cliente_cliente_rut: rut }});
     if (exists) continue;
 

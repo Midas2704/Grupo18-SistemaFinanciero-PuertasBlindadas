@@ -37,16 +37,16 @@ const ArmarCotizacion: React.FC = () => {
   const [inventario, setInventario] = useState<Material[]>([]);
   const [tiposProducto, setTiposProducto] = useState<ProductoTipo[]>([]);
   
-  // Form state
+  // Estado del formulario
   const [rutClienteInput, setRutClienteInput] = useState('');
   const [dropdownClienteOpen, setDropdownClienteOpen] = useState(false);
   
-  const [margen, setMargen] = useState<number>(30); // Default 30%
+  const [margen, setMargen] = useState<number>(30); // Por defecto 30%
   const [fechaVigencia, setFechaVigencia] = useState('');
   const [moneda, setMoneda] = useState<number>(1);
   const [exentoIva, setExentoIva] = useState(false);
   
-  // Productos state
+  // Estado de productos
   const [productos, setProductos] = useState<ProductoSeleccionado[]>([{
     id_interno: Date.now(),
     tipo_producto: '',
@@ -60,7 +60,7 @@ const ArmarCotizacion: React.FC = () => {
   // Roles
   const [userRole, setUserRole] = useState('Secretaria');
   
-  // Discount state
+  // Estado de descuentos
   const [aplicarDescuento, setAplicarDescuento] = useState(false);
   const [tipoDescuento, setTipoDescuento] = useState<'monto_fijo' | 'porcentaje'>('porcentaje');
   const [valorDescuento, setValorDescuento] = useState<number>(0);
@@ -94,7 +94,7 @@ const ArmarCotizacion: React.FC = () => {
       if (clienteRef.current && !clienteRef.current.contains(event.target as Node)) {
         setDropdownClienteOpen(false);
       }
-      // Close all material dropdowns
+      // Cerrar todos los menús desplegables de materiales
       setProductos(prev => prev.map(p => ({...p, dropdownMaterialOpen: false})));
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -238,7 +238,7 @@ const ArmarCotizacion: React.FC = () => {
 
       setMensaje({ text: 'Cotización procesada exitosamente', type: 'success' });
 
-      // Reset form
+      // Limpiar formulario
       setProductos([{ id_interno: Date.now(), tipo_producto: '', medidas: {alto:'',ancho:'',largo:''}, observaciones: '', materiales: [], dropdownMaterialOpen: false, materialSearch: '' }]);
       setRutClienteInput('');
       setAplicarDescuento(false);

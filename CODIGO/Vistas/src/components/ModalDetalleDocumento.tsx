@@ -48,12 +48,12 @@ const ModalDetalleDocumento: React.FC<ModalDetalleDocumentoProps> = ({ activeMod
           {/* Medidas */}
           {activeModal.tipo === 'cotizacion' && activeModal.data.detalle_cotizacion?.[0] && (() => {
             const det = activeModal.data.detalle_cotizacion[0];
-            // Try numeric fields first (new cotizaciones)
+            // Intentar con campos numéricos primero (cotizaciones nuevas)
             let alto = Number(det.medida_alto_referencial || 0);
             let ancho = Number(det.medida_ancho_referencial || 0);
             let espesor = Number(det.medida_espesor_referencial || 0);
 
-            // Default: parse from descripcion_item_cotizado string e.g. "Puerta (120x80x5)"
+            // Por defecto: extraer desde texto e.g. "Puerta (120x80x5)"
             if (alto === 0 && ancho === 0 && espesor === 0 && det.descripcion_item_cotizado) {
               const match = det.descripcion_item_cotizado.match(/(\d+(?:\.\d+)?)[xX](\d+(?:\.\d+)?)[xX](\d+(?:\.\d+)?)/);
               if (match) {

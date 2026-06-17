@@ -106,7 +106,7 @@ billingController.post('/quotes', async (req, res) => {
       subtotal_costos_global += subtotal_costos_prod;
       const precio_sugerido_prod = margenDecimal < 1 ? subtotal_costos_prod / (1 - margenDecimal) : 0;
 
-      // Parse medidas: el frontend manda algo como "120x80x5"
+      // Procesar medidas: el frontend envía un formato como "120x80x5"
       const medidasStr = prod.medidas || '0x0x0';
       const medidasParts = String(medidasStr).split(/[xX]/).map(s => Number(s.trim()) || 0);
       const altoParsed = medidasParts[0] || 0;
@@ -151,7 +151,7 @@ billingController.post('/quotes', async (req, res) => {
 
     let estadoCot = 'pendiente';
     if (userRole === 'Secretaria') {
-      estadoCot = 'pendiente'; // changed from borrador
+      estadoCot = 'pendiente'; // cambiado desde estado borrador
     } else {
       estadoCot = 'aprobada';
     }
@@ -220,7 +220,7 @@ billingController.get('/pending-approvals', async (req, res) => {
       orderBy: [{ fecha_emision: 'desc' }, { id_nota_venta: 'desc' }]
     });
 
-    // Force chronological order
+    // Forzar orden cronológico
     cotizaciones.sort((a, b) => new Date(b.fecha_emision).getTime() - new Date(a.fecha_emision).getTime() || b.id_cotizacion - a.id_cotizacion);
     notas_venta.sort((a, b) => new Date(b.fecha_emision).getTime() - new Date(a.fecha_emision).getTime() || b.id_nota_venta - a.id_nota_venta);
 
@@ -274,7 +274,7 @@ billingController.get('/history', async (req, res) => {
     });
     console.log(`History Notas de Venta Fetched: ${notas_venta.length}`);
 
-    // Force chronological order
+    // Forzar orden cronológico
     cotizaciones.sort((a, b) => new Date(b.fecha_emision).getTime() - new Date(a.fecha_emision).getTime() || b.id_cotizacion - a.id_cotizacion);
     notas_venta.sort((a, b) => new Date(b.fecha_emision).getTime() - new Date(a.fecha_emision).getTime() || b.id_nota_venta - a.id_nota_venta);
 
@@ -307,7 +307,7 @@ billingController.post('/quotes/:id/approve', async (req, res) => {
       });
 
       // Crear nota de venta (RF12)
-      // Fix double tax on conversion
+      // Ajustar cálculo de impuesto en la conversión
       const neto = Number(cotizacion.precio_sugerido || 0);
       const total = Number(cotizacion.monto_total_estimado || neto);
       const impuesto = total - neto;
@@ -316,7 +316,7 @@ billingController.post('/quotes/:id/approve', async (req, res) => {
       if (plazo_pago) {
         fechaVencimiento.setDate(fechaVencimiento.getDate() + Number(plazo_pago));
       } else {
-        fechaVencimiento.setDate(fechaVencimiento.getDate() + 30); // default
+        fechaVencimiento.setDate(fechaVencimiento.getDate() + 30); // por defecto
       }
 
       const nuevaNotaVenta = await tx.nota_venta.create({
