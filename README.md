@@ -25,7 +25,10 @@ git clone https://github.com/Midas2704/Grupo18-SistemaFinanciero-PuertasBlindada
 cd Grupo18-SistemaFinanciero-PuertasBlindadas
 ```
 
-### 2. Configurar y Ejecutar la capa de controladores
+### 2. Levantar la Capa de Persistencia (Base de Datos)
+Para inicializar la base de datos PostgreSQL, se debe ejecutar el script SQL ubicado en la raíz del proyecto: `Base_de_datos_Tres_Schemas.sql`. Este documento contiene todas las instrucciones necesarias para generar las tablas y relaciones de los esquemas utilizados por el sistema.
+
+### 3. Configurar y Ejecutar la capa de controladores
 ```bash
 cd CODIGO/Controladores
 npm install
@@ -38,7 +41,7 @@ npm run dev
 ```
 El backend estará disponible por defecto en `http://localhost:3000`.
 
-### 3. Configurar y Ejecutar el la capa de vistas
+### 4. Configurar y Ejecutar la capa de vistas
 Abre una nueva pestaña en tu terminal y ejecuta:
 ```bash
 cd CODIGO/Vistas
