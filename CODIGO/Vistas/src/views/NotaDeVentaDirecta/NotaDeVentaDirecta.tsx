@@ -1,3 +1,4 @@
+import { solicitarFinanzas } from '../../api/finanzas';
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Calculator, User, DollarSign, Percent, Shield, ChevronDown } from 'lucide-react';
 
@@ -16,13 +17,12 @@ const NotaDeVentaDirecta: React.FC = () => {
 
   const [montoBase, setMontoBase] = useState<number>(0);
   const [moneda, setMoneda] = useState('CLP');
-  const [tasaCambio, setTasaCambio] = useState<number>(1);
-  const [tasaManualHabilitada, setTasaManualHabilitada] = useState(false);
+
   const [exentoIva, setExentoIva] = useState(false);
   const [aplicarDescuento, setAplicarDescuento] = useState(false);
   const [descuentoTipo, setDescuentoTipo] = useState<'fijo' | 'porcentaje'>('porcentaje');
   const [descuentoValor, setDescuentoValor] = useState<number>(0);
-  const [userRole, setUserRole] = useState('Secretaria'); // Rol de usuario simulado para pruebas
+
   
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState({ text: '', type: '' });
@@ -30,9 +30,9 @@ const NotaDeVentaDirecta: React.FC = () => {
   const clienteRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch('http://localhost:3000/api/finanzas/clients')
+    solicitarFinanzas('/clients')
       .then(res => res.json())
-      .then(data => setClientes(data))
+      .then(data => setClientes(data.filter((cliente: any) => cliente.rut && cliente.nivelFormalizacion === 'formal')))
       .catch(e => console.error('Error fetching clientes', e));
 
     const handleClickOutside = (event: MouseEvent) => {
@@ -44,41 +44,19 @@ const NotaDeVentaDirecta: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    if (moneda !== 'CLP') {
-      fetch(`http://localhost:3000/api/finanzas/billing/exchange-rate/${moneda}`)
-        .then(res => {
-          if (!res.ok) throw new Error('API request failed');
-          return res.json();
-        })
-        .then(data => {
-          setTasaCambio(data.rate);
-          setTasaManualHabilitada(false);
-        })
-        .catch(e => {
-          console.error('Error fetching exchange rate', e);
-          alert('API del Banco Central no responde. Ingrese tipo de cambio manualmente.');
-          setTasaManualHabilitada(true);
-        });
-    } else {
-      setTasaCambio(1);
-      setTasaManualHabilitada(false);
-    }
-  }, [moneda]);
-
   // Cálculos
-  const netoCLP = montoBase * tasaCambio;
+  const netoComercial = montoBase;
   
-  let montoDescuentoCLP = 0;
+  let montoDescuentoComercial = 0;
   if (aplicarDescuento && descuentoValor > 0) {
     if (descuentoTipo === 'porcentaje') {
-      montoDescuentoCLP = netoCLP * (descuentoValor / 100);
+      montoDescuentoComercial = netoComercial * (descuentoValor / 100);
     } else {
-      montoDescuentoCLP = descuentoValor * tasaCambio;
+      montoDescuentoComercial = descuentoValor;
     }
   }
 
-  const baseImponible = Math.max(0, netoCLP - montoDescuentoCLP);
+  const baseImponible = Math.max(0, netoComercial - montoDescuentoComercial);
   const iva = exentoIva ? 0 : baseImponible * 0.19;
   const totalFinal = baseImponible + iva;
 
@@ -101,16 +79,14 @@ const NotaDeVentaDirecta: React.FC = () => {
         id_cliente: parseInt(idVal),
         monto_neto: montoBase,
         moneda: moneda,
-        tasa_cambio: tasaCambio,
         exento_iva: exentoIva,
-        userRole: userRole,
         descuento: aplicarDescuento ? {
           tipo: descuentoTipo,
           valor: descuentoValor
         } : null
       };
 
-      const res = await fetch('http://localhost:3000/api/finanzas/billing/nota-venta', {
+      const res = await solicitarFinanzas('/billing/nota-venta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -228,19 +204,9 @@ const NotaDeVentaDirecta: React.FC = () => {
                   >
                     <option value="CLP">CLP</option>
                     <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tasa (CLP)</label>
-                  <input 
-                    type="number" 
-                    disabled={!tasaManualHabilitada}
-                    value={tasaCambio || ''}
-                    onChange={(e) => setTasaCambio(Number(e.target.value))}
-                    className={`w-full p-2.5 border rounded-lg outline-none ${!tasaManualHabilitada ? 'bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed' : 'bg-white border-gray-300 focus:ring-2 focus:ring-primary-500'}`}
-                  />
-                </div>
+                <div className="text-sm text-gray-500 flex items-center">La venta conserva su moneda. El tipo de cambio se registra al pagar.</div>
               </div>
             </div>
 
@@ -298,14 +264,7 @@ const NotaDeVentaDirecta: React.FC = () => {
                   </div>
                   <div className="col-span-2 text-xs text-orange-600 flex items-center gap-1 mt-1">
                     <Shield className="w-3 h-3" /> Requiere privilegios de Gerencia o Administrador para procesarse.
-                    <select 
-                      value={userRole} 
-                      onChange={e => setUserRole(e.target.value)}
-                      className="ml-2 bg-transparent border-b border-orange-300 outline-none"
-                    >
-                      <option value="Secretaria">Simular: Secretaria</option>
-                      <option value="Gerente">Simular: Gerencia</option>
-                    </select>
+                    <span>La autorización se valida al registrar la operación.</span>
                   </div>
                 </div>
               )}
@@ -321,14 +280,14 @@ const NotaDeVentaDirecta: React.FC = () => {
             
             <div className="space-y-3 relative z-10 text-sm">
               <div className="flex justify-between items-center text-gray-300">
-                <span>Subtotal Base (CLP):</span>
-                <span>${netoCLP.toLocaleString('es-CL', { maximumFractionDigits: 0 })}</span>
+                <span>Subtotal Base ({moneda}):</span>
+                <span>${netoComercial.toLocaleString('es-CL', { maximumFractionDigits: 0 })}</span>
               </div>
               
               {aplicarDescuento && (
                 <div className="flex justify-between items-center text-orange-400">
                   <span>Descuento Aplicado:</span>
-                  <span>-${montoDescuentoCLP.toLocaleString('es-CL', { maximumFractionDigits: 0 })}</span>
+                  <span>-${montoDescuentoComercial.toLocaleString('es-CL', { maximumFractionDigits: 0 })}</span>
                 </div>
               )}
 

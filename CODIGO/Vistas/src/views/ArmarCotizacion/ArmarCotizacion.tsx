@@ -1,3 +1,4 @@
+import { solicitarFinanzas } from '../../api/finanzas';
 import React, { useState, useEffect, useRef } from 'react';
 import { Save, Trash2, Calculator, Plus, ChevronDown, Check } from 'lucide-react';
 
@@ -39,11 +40,15 @@ const ArmarCotizacion: React.FC = () => {
   
   // Estado del formulario
   const [rutClienteInput, setRutClienteInput] = useState('');
+  const [idFichaCliente, setIdFichaCliente] = useState<number | null>(null);
+  const [mostrarNuevoCliente, setMostrarNuevoCliente] = useState(false);
+  const [nuevoCliente, setNuevoCliente] = useState({ tipo: 'B2C', nombre: '', rut: '', contacto: '', correo: '', telefono: '' });
   const [dropdownClienteOpen, setDropdownClienteOpen] = useState(false);
   
   const [margen, setMargen] = useState<number>(30); // Por defecto 30%
   const [fechaVigencia, setFechaVigencia] = useState('');
-  const [moneda, setMoneda] = useState<number>(1);
+  const [moneda, setMoneda] = useState<number>(0);
+  const [monedas, setMonedas] = useState<{ id_moneda: number; codigo_moneda: string }[]>([]);
   const [exentoIva, setExentoIva] = useState(false);
   
   // Estado de productos
@@ -57,8 +62,7 @@ const ArmarCotizacion: React.FC = () => {
     materialSearch: ''
   }]);
   
-  // Roles
-  const [userRole, setUserRole] = useState('Secretaria');
+
   
   // Estado de descuentos
   const [aplicarDescuento, setAplicarDescuento] = useState(false);
@@ -71,17 +75,21 @@ const ArmarCotizacion: React.FC = () => {
   const clienteRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch('http://localhost:3000/api/finanzas/clients')
+    solicitarFinanzas('/monedas').then(res => res.json()).then(catalogo => {
+      setMonedas(catalogo);
+      setMoneda(catalogo.find((opcion: { codigo_moneda: string }) => opcion.codigo_moneda === 'CLP')?.id_moneda || 0);
+    }).catch(() => setMensaje({ text: 'No se pudo cargar el catálogo de monedas', type: 'error' }));
+    solicitarFinanzas('/clients')
       .then(res => res.json())
-      .then(data => setClientes(data))
+      .then(data => setClientes(data.filter((cliente: any) => cliente.rut && cliente.nivelFormalizacion === 'formal')))
       .catch(e => console.error(e));
 
-    fetch('http://localhost:3000/api/finanzas/billing/inventory')
+    solicitarFinanzas('/billing/inventory')
       .then(res => res.json())
       .then(data => setInventario(data))
       .catch(e => console.error(e));
 
-    fetch('http://localhost:3000/api/finanzas/billing/products')
+    solicitarFinanzas('/billing/products')
       .then(res => res.json())
       .then(data => setTiposProducto(data))
       .catch(e => console.error(e));
@@ -198,7 +206,7 @@ const ArmarCotizacion: React.FC = () => {
     (tipoDescuento === 'porcentaje' && valorDescuento <= 100) || 
     (tipoDescuento === 'monto_fijo' && valorDescuento <= precioSugerido);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (emitir = false) => {
     setMensaje({ text: '', type: '' });
     
     const rutVal = rutClienteInput.split(' - ')[0];
@@ -209,18 +217,18 @@ const ArmarCotizacion: React.FC = () => {
     
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3000/api/finanzas/billing/quotes', {
+      const res = await solicitarFinanzas('/billing/quotes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           rut_cliente: rutVal,
+          id_ficha_cliente: idFichaCliente || undefined,
           fecha_vigencia: fechaVigencia,
           margen_esperado: margen,
           descuento_tipo: aplicarDescuento ? tipoDescuento : null,
           descuento_valor: aplicarDescuento ? valorDescuento : 0,
           id_moneda: moneda,
           exento_iva: exentoIva,
-          userRole: userRole,
           productos: productos.map(p => ({
             tipo_producto: p.tipo_producto,
             medidas: `${p.medidas.alto}x${p.medidas.ancho}x${p.medidas.largo}`,
@@ -235,6 +243,10 @@ const ArmarCotizacion: React.FC = () => {
       
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      if (emitir && data.id_cotizacion) {
+        const emision = await solicitarFinanzas(`/billing/quotes/${data.id_cotizacion}/emitir`, { method: 'POST' });
+        const emisionData = await emision.json(); if (!emision.ok) throw new Error(emisionData.error || 'No fue posible emitir la Cotización');
+      }
 
       setMensaje({ text: 'Cotización procesada exitosamente', type: 'success' });
 
@@ -244,13 +256,14 @@ const ArmarCotizacion: React.FC = () => {
       setAplicarDescuento(false);
       setValorDescuento(0);
       setExentoIva(false);
-      setMoneda(1);
+      setMoneda(monedas.find(opcion => opcion.codigo_moneda === 'CLP')?.id_moneda || 0);
     } catch (error: any) {
       setMensaje({ text: error.message, type: 'error' });
     } finally {
       setLoading(false);
     }
   };
+  const registrarClienteDesdeCotizacion = async (evento: React.FormEvent) => { evento.preventDefault(); if (!window.confirm('¿Confirmas registrar este cliente y usarlo en la Cotización en elaboración?')) return; const r=await solicitarFinanzas('/billing/quotes/cliente',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...nuevoCliente,confirmado:true})}); const d=await r.json(); if(!r.ok){setMensaje({text:d.error,type:'error'});return;} const cliente=d.cliente; setIdFichaCliente(cliente.ficha_cliente?.id_ficha_cliente || null); setRutClienteInput(cliente.rut_cliente ? `${cliente.rut_cliente} - ${cliente.nombre_razon_social_referencia}` : cliente.nombre_razon_social_referencia); setMostrarNuevoCliente(false); setNuevoCliente({tipo:'B2C',nombre:'',rut:'',contacto:'',correo:'',telefono:''}); setMensaje({text:'Cliente registrado y asociado al contexto de la Cotización',type:'success'}); };
 
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -280,6 +293,14 @@ const ArmarCotizacion: React.FC = () => {
             <div className="space-y-4">
               <div className="relative" ref={clienteRef}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Cliente (Buscar por RUT o Nombre)</label>
+                <button type="button" onClick={() => setMostrarNuevoCliente(v => !v)} className="text-xs text-primary-700 mb-2">+ Registrar cliente desde Cotización</button>
+                {mostrarNuevoCliente && <form onSubmit={registrarClienteDesdeCotizacion} className="mb-3 p-3 border rounded-lg bg-orange-50 space-y-2">
+                  <select required className="w-full p-2 border rounded" value={nuevoCliente.tipo} onChange={e=>setNuevoCliente({...nuevoCliente,tipo:e.target.value})}><option value="B2C">B2C · Persona natural</option><option value="B2B">B2B · Empresa</option></select>
+                  <input required className="w-full p-2 border rounded" placeholder={nuevoCliente.tipo==='B2B'?'Razón social':'Nombre'} value={nuevoCliente.nombre} onChange={e=>setNuevoCliente({...nuevoCliente,nombre:e.target.value})}/>
+                  <input required={nuevoCliente.tipo==='B2B'} className="w-full p-2 border rounded" placeholder={nuevoCliente.tipo==='B2B'?'RUT obligatorio':'RUT (opcional para B2C provisional)'} value={nuevoCliente.rut} onChange={e=>setNuevoCliente({...nuevoCliente,rut:e.target.value})}/>
+                  <div className="grid grid-cols-2 gap-2"><input className="p-2 border rounded" placeholder="Contacto" value={nuevoCliente.contacto} onChange={e=>setNuevoCliente({...nuevoCliente,contacto:e.target.value})}/><input type="email" className="p-2 border rounded" placeholder="Correo" value={nuevoCliente.correo} onChange={e=>setNuevoCliente({...nuevoCliente,correo:e.target.value})}/></div>
+                  <input className="w-full p-2 border rounded" placeholder="Teléfono" value={nuevoCliente.telefono} onChange={e=>setNuevoCliente({...nuevoCliente,telefono:e.target.value})}/><button className="px-3 py-2 bg-primary-600 text-white rounded">Confirmar y asociar</button>
+                </form>}
                 <div 
                   className="flex items-center w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-primary-500 cursor-text relative"
                   onClick={() => setDropdownClienteOpen(true)}
@@ -306,7 +327,7 @@ const ArmarCotizacion: React.FC = () => {
                           key={c.rut} 
                           className="px-4 py-2 hover:bg-primary-50 cursor-pointer text-sm text-gray-700 flex flex-col border-b border-gray-50 last:border-0"
                           onClick={() => {
-                            setRutClienteInput(`${c.rut} - ${c.razonSocial}`);
+                            setRutClienteInput(`${c.rut} - ${c.razonSocial}`); setIdFichaCliente(null);
                             setDropdownClienteOpen(false);
                           }}
                         >
@@ -338,9 +359,8 @@ const ArmarCotizacion: React.FC = () => {
                     onChange={e => setMoneda(Number(e.target.value))}
                     className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
                   >
-                    <option value={1}>CLP</option>
-                    <option value={2}>USD</option>
-                    <option value={3}>EUR</option>
+                    <option value={0} disabled>Seleccione moneda</option>
+                    {monedas.map(opcion => <option key={opcion.id_moneda} value={opcion.id_moneda}>{opcion.codigo_moneda}</option>)}
                   </select>
                 </div>
                 <div>
@@ -404,15 +424,7 @@ const ArmarCotizacion: React.FC = () => {
                       </div>
                     </div>
                     <div className="text-xs text-orange-600 flex items-center gap-1 mt-1">
-                      Requiere privilegios para aprobarse.
-                      <select 
-                        value={userRole} 
-                        onChange={e => setUserRole(e.target.value)}
-                        className="ml-2 bg-transparent border-b border-orange-300 outline-none text-orange-800"
-                      >
-                        <option value="Secretaria">Rol Simulado: Secretaria</option>
-                        <option value="Gerente">Rol Simulado: Gerente</option>
-                      </select>
+                      Se guardará como borrador y la autorización se validará al emitirla.
                     </div>
                   </div>
                 )}
@@ -629,13 +641,14 @@ const ArmarCotizacion: React.FC = () => {
 
           <div className="flex flex-col gap-3">
             <button 
-              onClick={handleSubmit}
+              onClick={() => handleSubmit(false)}
               disabled={loading || !isDescuentoValido}
               className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-primary-600 text-white rounded-xl hover:bg-primary-700 shadow-sm transition-all font-medium disabled:opacity-50"
             >
               <Save className="w-5 h-5" />
-              Generar Cotización
+              Guardar borrador
             </button>
+            <button onClick={() => handleSubmit(true)} disabled={loading || !isDescuentoValido} className="w-full py-3 px-4 border border-primary-600 text-primary-700 rounded-xl hover:bg-primary-50 font-medium disabled:opacity-50"><Check className="w-5 h-5 inline mr-2"/>Guardar y emitir Cotización</button>
           </div>
         </div>
       </div>

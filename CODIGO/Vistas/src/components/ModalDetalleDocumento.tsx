@@ -1,14 +1,27 @@
-import React from 'react';
+import OperacionesFinancieras from './OperacionesFinancieras';
+import { solicitarFinanzas } from '../api/finanzas';
+import React, { useState } from 'react';
 import { X, DollarSign } from 'lucide-react';
 
 interface ModalDetalleDocumentoProps {
   activeModal: { tipo: 'cotizacion' | 'nota_venta', data: any } | null;
   onClose: () => void;
   children?: React.ReactNode;
+  onViewPago?: (id: number) => void;
 }
 
-const ModalDetalleDocumento: React.FC<ModalDetalleDocumentoProps> = ({ activeModal, onClose, children }) => {
+const ModalDetalleDocumento: React.FC<ModalDetalleDocumentoProps> = ({ activeModal, onClose, children, onViewPago }) => {
+  const [guiaEdit, setGuiaEdit] = useState<any>(null);
+  const [guiaFolio, setGuiaFolio] = useState('');
+  const [guiaAntecedentes, setGuiaAntecedentes] = useState('');
   if (!activeModal) return null;
+  const guias = activeModal.data.guia_despacho || [];
+  const guardarGuia = async () => {
+    if (!guiaEdit || !guiaFolio.trim()) return;
+    const respuesta = await solicitarFinanzas(`/billing/guides/${guiaEdit.id_guia_despacho}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folio: guiaFolio.trim(), antecedentes: guiaAntecedentes ? { texto: guiaAntecedentes } : undefined }) });
+    if (!respuesta.ok) { const error = await respuesta.json(); window.alert(error.error || 'No se pudo modificar la guía'); return; }
+    window.location.reload();
+  };
 
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur flex justify-center items-center z-50 p-4">
@@ -32,7 +45,7 @@ const ModalDetalleDocumento: React.FC<ModalDetalleDocumentoProps> = ({ activeMod
         <div className="p-6 space-y-5">
           {/* Info general */}
           <div className="grid grid-cols-3 gap-3 text-sm bg-gray-50 p-4 rounded-lg">
-            <div><span className="text-gray-500 block text-xs">Fecha Emisión</span><span className="font-medium">{new Date(activeModal.data.fecha_emision).toLocaleDateString('es-CL')}</span></div>
+            <div><span className="text-gray-500 block text-xs">Fecha Emisión</span><span className="font-medium">{new Date(activeModal.data.fecha_emision).toLocaleDateString('es-CL', { timeZone: 'UTC' })}</span></div>
             <div><span className="text-gray-500 block text-xs">Estado</span>
               <span className={`font-semibold uppercase text-xs px-2 py-0.5 rounded ${
                 (activeModal.data.estado_cotizacion === 'aprobada' || activeModal.data.estado_nota_venta === 'confirmada') ? 'bg-green-100 text-green-700' :
@@ -108,9 +121,9 @@ const ModalDetalleDocumento: React.FC<ModalDetalleDocumentoProps> = ({ activeMod
 
           {/* Resumen financiero */}
           {(() => {
-            const isForeign = Number(activeModal.data.id_moneda) > 1;
-            const sym = isForeign ? 'USD ' : '$';
-            const isExento = Number(activeModal.data.monto_impuesto) === 0;
+            const isForeign = activeModal.data.moneda?.codigo_moneda !== 'CLP';
+            const sym = isForeign ? `${activeModal.data.moneda?.codigo_moneda || ''} ` : '$';
+            const isExento = activeModal.data.exento_iva;
 
             return (
               <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
@@ -138,7 +151,6 @@ const ModalDetalleDocumento: React.FC<ModalDetalleDocumentoProps> = ({ activeMod
                 {isForeign && (
                   <div className="border-t pt-3 mt-3">
                     <div className="text-lg font-bold text-slate-800">Monto Original: {Number(activeModal.data.monto_total || activeModal.data.monto_total_estimado || 0).toLocaleString('es-CL')} {activeModal.data.moneda?.codigo_moneda || 'USD'}</div>
-                    <div className="text-sm font-medium text-slate-500">Equivalente Contable: ${Number(activeModal.data.monto_convertido || 0).toLocaleString('es-CL')} CLP</div>
                   </div>
                 )}
               </div>
@@ -154,11 +166,10 @@ const ModalDetalleDocumento: React.FC<ModalDetalleDocumentoProps> = ({ activeMod
               </h4>
               
               {(() => {
-                const totalPagadoNV = activeModal.data.asignacion_pago_cliente?.reduce((sum: number, asig: any) => sum + Number(asig.monto_asignado), 0) || 0;
-                const saldoNV = Math.max(0, Number(activeModal.data.monto_total) - totalPagadoNV);
-                const isForeign = Number(activeModal.data.id_moneda) > 1;
+                const totalPagadoNV = Number(activeModal.data.pagosEfectivos || 0);
+                const saldoNV = Number(activeModal.data.saldoPendiente || 0);
+                const isForeign = activeModal.data.moneda?.codigo_moneda !== 'CLP';
                 const sigla = activeModal.data.moneda?.codigo_moneda || 'USD';
-                const factorConv = Number(activeModal.data.monto_total) > 0 ? Number(activeModal.data.monto_convertido) / Number(activeModal.data.monto_total) : 1;
 
                 return (
                   <div className="flex gap-4 mb-4">
@@ -169,7 +180,6 @@ const ModalDetalleDocumento: React.FC<ModalDetalleDocumentoProps> = ({ activeMod
                       {isForeign ? (
                         <div className="flex flex-col">
                           <span><span className="font-semibold">Falta por Pagar (Original):</span> {saldoNV.toLocaleString('es-CL', { maximumFractionDigits: 0 })} {sigla}</span>
-                          <span className="text-xs mt-1 text-orange-700 italic"><span className="font-semibold">Falta por Pagar (CLP):</span> ${Math.round(saldoNV * factorConv).toLocaleString('es-CL')} CLP</span>
                         </div>
                       ) : (
                         <span><span className="font-semibold">Falta por Pagar:</span> ${saldoNV.toLocaleString('es-CL', { maximumFractionDigits: 0 })} CLP</span>
@@ -200,16 +210,17 @@ const ModalDetalleDocumento: React.FC<ModalDetalleDocumentoProps> = ({ activeMod
                         <tr key={pIdx} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                           <td className="py-2 px-3 text-gray-800">
                             Pago #{asig.pago_cliente?.id_pago_cliente}
+                            {onViewPago && <button className="ml-2 text-primary-700 text-xs underline" onClick={() => onViewPago(Number(asig.pago_cliente?.id_pago_cliente))}>Ver detalle</button>}
                           </td>
                           <td className="py-2 px-3 text-gray-600">
-                            {new Date(asig.pago_cliente?.fecha_pago).toLocaleDateString('es-CL')}
+                            {new Date(asig.pago_cliente?.fecha_pago).toLocaleDateString('es-CL', { timeZone: 'UTC' })}
                           </td>
                           <td className="py-2 px-3 text-gray-600 capitalize">
                             {asig.pago_cliente?.medio_pago?.nombre_medio_pago || 'N/A'}
                           </td>
                           <td className="py-2 px-3">
                             <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-green-50 text-green-700 capitalize">
-                              {asig.pago_cliente?.estado_verificacion || 'aprobado'}
+                              {asig.pago_cliente?.anulacion_pago ? 'Anulado' : asig.pago_cliente?.reversion_pago?.length ? 'Con reversión' : asig.pago_cliente?.estado_verificacion}
                            </span>
                           </td>
                           <td className="py-2 px-3 text-right font-medium text-green-600">
@@ -237,7 +248,7 @@ const ModalDetalleDocumento: React.FC<ModalDetalleDocumentoProps> = ({ activeMod
                       const input = document.getElementById('input_guia') as HTMLInputElement;
                       if (!input.value) return;
                       try {
-                        const res = await fetch('http://localhost:3000/api/finanzas/billing/documents', {
+                        const res = await solicitarFinanzas('/billing/documents', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ id_nota_venta: activeModal.data.id_nota_venta, tipo_documento: 'guia_despacho', folio: input.value })
@@ -248,6 +259,7 @@ const ModalDetalleDocumento: React.FC<ModalDetalleDocumentoProps> = ({ activeMod
                       } catch (e) { alert('Error de conexión'); }
                     }} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition-colors">Vincular</button>
                   </div>
+                  {guias.map((guia: any) => <div key={guia.id_guia_despacho} className="mt-3 p-2 bg-blue-50 rounded text-sm"><div className="flex justify-between"><span>Guía {guia.folio}</span><button className="text-blue-700 font-medium" onClick={() => { setGuiaEdit(guia); setGuiaFolio(guia.folio); setGuiaAntecedentes(guia.antecedentes?.texto || ''); }}>Editar/Modificar</button></div>{guiaEdit?.id_guia_despacho === guia.id_guia_despacho && <div className="mt-2 space-y-2"><input className="w-full border rounded p-2" value={guiaFolio} onChange={e=>setGuiaFolio(e.target.value)} placeholder="Folio vigente"/><textarea className="w-full border rounded p-2" value={guiaAntecedentes} onChange={e=>setGuiaAntecedentes(e.target.value)} placeholder="Antecedentes permitidos"/><button className="px-3 py-1.5 bg-primary-600 text-white rounded" onClick={guardarGuia}>Guardar cambios</button></div>}</div>)}
                 </div>
                 
                 <div className="bg-white border border-gray-200 p-3 rounded-lg shadow-sm">
@@ -258,7 +270,7 @@ const ModalDetalleDocumento: React.FC<ModalDetalleDocumentoProps> = ({ activeMod
                       const input = document.getElementById('input_factura') as HTMLInputElement;
                       if (!input.value) return;
                       try {
-                        const res = await fetch('http://localhost:3000/api/finanzas/billing/documents', {
+                        const res = await solicitarFinanzas('/billing/documents', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ id_nota_venta: activeModal.data.id_nota_venta, tipo_documento: 'factura', folio: input.value })
@@ -285,6 +297,7 @@ const ModalDetalleDocumento: React.FC<ModalDetalleDocumentoProps> = ({ activeMod
           )}
           
           {children}
+          <OperacionesFinancieras key={`${activeModal.tipo}-${activeModal.data.id_nota_venta || activeModal.data.id_cotizacion}`} tipo={activeModal.tipo} documento={activeModal.data}/>
 
         </div>
 

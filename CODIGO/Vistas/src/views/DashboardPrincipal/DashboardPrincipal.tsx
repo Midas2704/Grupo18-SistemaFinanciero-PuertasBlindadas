@@ -1,3 +1,4 @@
+import { solicitarFinanzas } from '../../api/finanzas';
 import React, { useState, useEffect } from 'react';
 import { DollarSign, Users, FileSignature, TrendingUp, AlertCircle, ShieldCheck } from 'lucide-react';
 
@@ -13,7 +14,7 @@ const DashboardPrincipal: React.FC = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetch('http://localhost:3000/api/finanzas/dashboard/stats')
+    solicitarFinanzas('/dashboard/stats')
       .then(res => {
         if (!res.ok) throw new Error('Error al cargar métricas');
         return res.json();
@@ -57,7 +58,7 @@ const DashboardPrincipal: React.FC = () => {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-500">Ingresos Totales (Vigentes)</p>
+              <p className="text-sm font-medium text-gray-500">Ventas vigentes (CLP)</p>
               <h3 className="text-3xl font-bold text-gray-900 mt-2">
                 ${stats.ingresosTotales.toLocaleString('es-CL', { maximumFractionDigits: 0 })}
               </h3>

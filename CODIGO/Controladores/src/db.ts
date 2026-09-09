@@ -1,14 +1,6 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
-
-const connectionString = process.env.DATABASE_URL || "postgresql://postgres:Midas2704@localhost:5433/pblindadas_finanzas?schema=finanzas";
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-
-export const prisma = new PrismaClient({ adapter });
-
-// Patch para serializar BigInt a String en JSON
-(BigInt.prototype as any).toJSON = function () {
-  return this.toString();
-};
+if (!process.env.DATABASE_URL) throw new Error('Configura DATABASE_URL en Controladores/.env');
+// El adaptador configura la conexión; toda consulta atraviesa Prisma.
+export const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
