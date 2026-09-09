@@ -1,12 +1,12 @@
 import { prisma } from '../src/db';
 import { hashClave, futuro, politica } from '../src/utilidades/seguridad';
-import { codigosImplementados, codigosGerencia, codigosSecretaria, codigosContador, dependenciasPermiso } from '../src/validaciones/permisos';
+import { codigosImplementados, codigosTodosLosCU, codigosGerencia, codigosSecretaria, codigosContador, dependenciasPermiso } from '../src/validaciones/permisos';
 export async function sembrarM4() {
  if(process.env.NODE_ENV==='production') throw new Error('El seed de credenciales ficticias sólo se permite en desarrollo');
  const hash=await hashClave('Demostracion-M4-2026!');
  await prisma.$transaction(async tx=>{
   const permisos=new Map<string,bigint>();
-  for(const codigo of codigosImplementados) {
+  for(const codigo of [...new Set([...codigosImplementados, ...codigosTodosLosCU])]) {
    const permiso=await tx.permiso.upsert({where:{codigo_m4:codigo},update:{},create:{codigo_m4:codigo,activo_m4:true,permiso_modulo:Number(codigo.slice(2))>=59?'M4':Number(codigo.slice(2))>=42?'M3':Number(codigo.slice(2))>=12?'M2':'M1',permiso_nombre_del_permiso:codigo,permiso_descripcion:`Operación ${codigo}`,requiere_administrador:['CU65','CU66','CU74'].includes(codigo)}});
    permisos.set(codigo,permiso.permiso_id_permiso);
   }
