@@ -1,4 +1,3 @@
-import { solicitarFinanzas } from '../../api/finanzas';
 import React, { useState, useEffect } from 'react';
 import { Check, X, AlertTriangle, Edit2 } from 'lucide-react';
 import ModalDetalleDocumento from '../../components/ModalDetalleDocumento';
@@ -16,7 +15,7 @@ const BandejaAprobacionGerencia: React.FC = () => {
 
   const fetchPendientes = () => {
     setLoading(true);
-    solicitarFinanzas('/billing/pending-approvals')
+    fetch('http://localhost:3000/api/finanzas/billing/pending-approvals')
       .then(res => res.json())
       .then(data => {
         setCotizaciones(data.cotizaciones || []);
@@ -27,7 +26,7 @@ const BandejaAprobacionGerencia: React.FC = () => {
   };
 
   const fetchHistory = () => {
-    solicitarFinanzas('/billing/history')
+    fetch('http://localhost:3000/api/finanzas/billing/history')
       .then(res => res.json())
       .then(data => {
         setHistoryCots(data.cotizaciones || []);
@@ -47,12 +46,12 @@ const BandejaAprobacionGerencia: React.FC = () => {
 
   const handleEditSave = async (id: number, data: any) => {
     try {
-      const res = await solicitarFinanzas(`/billing/quotes/${id}`, {
+      const res = await fetch(`http://localhost:3000/api/finanzas/billing/quotes/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      if (!res.ok) { const resultado = await res.json(); throw new Error(resultado.error || 'Error al actualizar cotización'); }
+      if (!res.ok) throw new Error('Error al actualizar cotización');
       setMensaje({ text: 'Cotización actualizada', type: 'success' });
       setEditingQuote(null);
       fetchPendientes();
@@ -68,15 +67,12 @@ const BandejaAprobacionGerencia: React.FC = () => {
     }
 
     try {
-      const endpoint = tipo === 'quotes' ? `/billing/quotes/${id}/accept-b2b` : `/billing/${tipo}/${id}/approve`;
-      const folioOrdenCompra = tipo === 'quotes' ? window.prompt('Folio de la Orden de Compra B2B:') : '';
-      if (tipo === 'quotes' && !folioOrdenCompra) { setApprovingQuoteId(null); return; }
-      const res = await solicitarFinanzas(endpoint, {
+      const res = await fetch(`http://localhost:3000/api/finanzas/billing/${tipo}/${id}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: tipo === 'quotes' ? JSON.stringify({ plazo_pago: plazoPago, folioOrdenCompra, respaldoOrdenCompra: `Registro de Orden de Compra ${folioOrdenCompra}` }) : undefined
+        body: tipo === 'quotes' ? JSON.stringify({ plazo_pago: plazoPago }) : undefined
       });
-      if (!res.ok) { const resultado = await res.json(); throw new Error(resultado.error || 'Error al aprobar'); }
+      if (!res.ok) throw new Error('Error al aprobar');
       const data = await res.json();
       setMensaje({ text: `Documento aprobado exitosamente`, type: 'success' });
       setApprovingQuoteId(null);
@@ -121,7 +117,7 @@ const BandejaAprobacionGerencia: React.FC = () => {
 
     try {
       const endpoint = tipo === 'quotes' ? `/quotes/${id}/reject` : `/nota-venta/${id}/anular`;
-      const res = await solicitarFinanzas(`/billing${endpoint}`, {
+      const res = await fetch(`http://localhost:3000/api/finanzas/billing${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ folio_nota_credito: folioNotaCredito })
@@ -145,7 +141,6 @@ const BandejaAprobacionGerencia: React.FC = () => {
       setMensaje({ text: e.message, type: 'error' });
     }
   };
-  const reactivar = async (id:number) => { const fecha=window.prompt('Nueva fecha de vigencia AAAA-MM-DD'); if(!fecha)return; const r=await solicitarFinanzas(`/billing/quotes/${id}/reactivar`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fechaVigencia:fecha})}); const d=await r.json(); setMensaje({text:r.ok?'Cotización reactivada':d.error,type:r.ok?'success':'error'}); if(r.ok){fetchPendientes();fetchHistory();} };
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
@@ -182,7 +177,7 @@ const BandejaAprobacionGerencia: React.FC = () => {
             <AlertTriangle className="w-8 h-8 text-orange-500" />
             Gestión de Aprobaciones
           </h1>
-          <p className="text-gray-500 mt-2">Consulta, edición, emisión y aceptación de Cotizaciones y Notas de Venta.</p>
+          <p className="text-gray-500 mt-2">Revisión de documentos retenidos por aplicar descuentos especiales o ventas directas.</p>
         </div>
         <div className="w-96 flex gap-2">
           <input
@@ -261,7 +256,7 @@ const BandejaAprobacionGerencia: React.FC = () => {
                         <div className="font-semibold text-gray-800">{cot.ficha_cliente?.cliente_financiero?.rut_cliente}</div>
                         <div className="text-gray-500">{cot.ficha_cliente?.cliente_financiero?.nombre_razon_social_referencia || 'N/A'}</div>
                       </td>
-                      <td className="py-3 px-6 text-sm">{new Date(cot.fecha_emision).toLocaleDateString('es-CL', { timeZone: 'UTC' })}</td>
+                      <td className="py-3 px-6 text-sm">{new Date(cot.fecha_emision).toLocaleDateString('es-CL')}</td>
                       <td className="py-3 px-6 font-medium text-orange-600">${Number(cot.monto_total_estimado).toLocaleString('es-CL')}</td>
                       <td className="py-3 px-6 text-right flex justify-end gap-2">
                         <button
@@ -331,7 +326,7 @@ const BandejaAprobacionGerencia: React.FC = () => {
                         <div className="font-semibold text-gray-800">{nv.ficha_cliente?.cliente_financiero?.rut_cliente}</div>
                         <div className="text-gray-500">{nv.ficha_cliente?.cliente_financiero?.nombre_razon_social_referencia || 'N/A'}</div>
                       </td>
-                      <td className="py-3 px-6 text-sm">{new Date(nv.fecha_emision).toLocaleDateString('es-CL', { timeZone: 'UTC' })}</td>
+                      <td className="py-3 px-6 text-sm">{new Date(nv.fecha_emision).toLocaleDateString('es-CL')}</td>
                       <td className="py-3 px-6 font-medium text-orange-600">${Number(nv.monto_total).toLocaleString('es-CL')}</td>
                       <td className="py-3 px-6 text-right flex justify-end gap-2">
                         <button onClick={() => handleApprove('nota-venta', nv.id_nota_venta)} className="p-2 bg-green-100 text-green-700 hover:bg-green-200 rounded" title="Aprobar">
@@ -375,7 +370,7 @@ const BandejaAprobacionGerencia: React.FC = () => {
                           {cot.estado_cotizacion.toUpperCase()}
                         </span>
                       </td>
-                      <td className="py-2 px-6">${Number(cot.monto_total_estimado).toLocaleString('es-CL')} {cot.estado_cotizacion==='vencida'&&<button onClick={()=>reactivar(cot.id_cotizacion)} className="ml-3 text-primary-700 underline">Reactivar</button>}</td>
+                      <td className="py-2 px-6">${Number(cot.monto_total_estimado).toLocaleString('es-CL')}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -503,7 +498,7 @@ const BandejaAprobacionGerencia: React.FC = () => {
                 {/* Margen - EDITABLE */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Margen Esperado (%)</label>
-                  <input type="number" name="margen" step="1" min="0" max="99"
+                  <input type="number" name="margen" step="1" min="0" max="100"
                     onInput={(e) => { e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, ''); }}
                     defaultValue={Number(editingQuote.margen_esperado || 0)}
                     className="w-full p-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-200" required />

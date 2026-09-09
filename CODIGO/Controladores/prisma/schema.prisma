@@ -1,7 +1,7 @@
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["views"]
-  engineType      = "client"
+  previewFeatures = ["driverAdapters", "views"]
+  engineType      = "binary"
 }
 
 datasource db {
@@ -37,8 +37,8 @@ model alerta_financiera {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model asignacion_pago_cliente {
   id_asignacion_pago_cliente Int                   @id @default(autoincrement())
-  id_pago_cliente            Int                   @unique
-  id_nota_venta              Int
+  id_pago_cliente            Int
+  id_nota_venta              Int?
   id_documento_tributario    Int?
   id_hito_cobro              Int?
   monto_asignado             Decimal               @db.Decimal(14, 2)
@@ -46,7 +46,7 @@ model asignacion_pago_cliente {
   observacion                String?
   documento_tributario       documento_tributario? @relation(fields: [id_documento_tributario], references: [id_documento_tributario], onDelete: Restrict, onUpdate: NoAction, map: "fk_asignacion_pago_cliente_documento")
   hito_cobro                 hito_cobro?           @relation(fields: [id_hito_cobro], references: [id_hito_cobro], onDelete: Restrict, onUpdate: NoAction, map: "fk_asignacion_pago_cliente_hito")
-  nota_venta                 nota_venta            @relation(fields: [id_nota_venta], references: [id_nota_venta], onDelete: Restrict, onUpdate: NoAction, map: "fk_asignacion_pago_cliente_nota")
+  nota_venta                 nota_venta?           @relation(fields: [id_nota_venta], references: [id_nota_venta], onDelete: Restrict, onUpdate: NoAction, map: "fk_asignacion_pago_cliente_nota")
   pago_cliente               pago_cliente          @relation(fields: [id_pago_cliente], references: [id_pago_cliente], onUpdate: NoAction, map: "fk_asignacion_pago_cliente_pago")
 
   @@index([id_pago_cliente], map: "idx_asignacion_pago_cliente_pago")
@@ -82,13 +82,8 @@ model cargo {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model cliente_financiero {
-  /// CLIENTE provisional de I2: reutiliza la extensión financiera; ubicación definitiva pendiente.
-  referencia_demostracion String?               @unique @db.VarChar(80)
-  nivel_formalizacion     String                @default("formal") @db.VarChar(20)
-  saldo_favor_cliente     saldo_favor_cliente[]
-
   id_cliente_financiero             Int                     @id @default(autoincrement())
-  rut_cliente                       String?                 @unique @db.VarChar(15)
+  rut_cliente                       String                  @unique @db.VarChar(15)
   id_tipo_cliente_financiero        Int
   nombre_razon_social_referencia    String                  @db.VarChar(150)
   contacto_financiero               String?                 @db.VarChar(150)
@@ -96,7 +91,7 @@ model cliente_financiero {
   telefono_financiero               String?                 @db.VarChar(30)
   estado_financiero                 String                  @default("activo") @db.VarChar(20)
   fecha_actualizacion_datos_cliente DateTime                @default(now()) @db.Timestamp(6)
-  cliente                           cliente?                @relation(fields: [rut_cliente], references: [cliente_cliente_rut], onUpdate: NoAction, map: "fk_cli_fin_cliente_ext")
+  cliente                           cliente                 @relation(fields: [rut_cliente], references: [cliente_cliente_rut], onUpdate: NoAction, map: "fk_cli_fin_cliente_ext")
   tipo_cliente_financiero           tipo_cliente_financiero @relation(fields: [id_tipo_cliente_financiero], references: [id_tipo_cliente_financiero], onUpdate: NoAction, map: "fk_cliente_financiero_tipo_cliente")
   ficha_cliente                     ficha_cliente?
 
@@ -118,22 +113,17 @@ model concepto_remuneracion {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model conciliacion {
-  /// CU58: conciliación de pago sin obligar a crear movimientos de otros módulos.
-  id_pago_cliente Int?
-  evidencia       String?
-  pago_cliente    pago_cliente? @relation(fields: [id_pago_cliente], references: [id_pago_cliente], onDelete: Restrict)
-
   id_conciliacion          Int                    @id @default(autoincrement())
-  id_movimiento_financiero Int?
-  id_movimiento_bancario   Int?
+  id_movimiento_financiero Int
+  id_movimiento_bancario   Int
   fecha_conciliacion       DateTime               @default(now()) @db.Timestamp(6)
   monto_conciliado         Decimal                @db.Decimal(14, 2)
   diferencia_conciliacion  Decimal?               @default(0) @db.Decimal(14, 2)
   estado_conciliacion      String                 @default("pendiente") @db.VarChar(30)
   responsable_conciliacion String?                @db.VarChar(150)
   observacion              String?
-  movimiento_bancario      movimiento_bancario?   @relation(fields: [id_movimiento_bancario], references: [id_movimiento_bancario], onUpdate: NoAction, map: "fk_conciliacion_movimiento_bancario")
-  movimiento_financiero    movimiento_financiero? @relation(fields: [id_movimiento_financiero], references: [id_movimiento_financiero], onUpdate: NoAction, map: "fk_conciliacion_movimiento_financiero")
+  movimiento_bancario      movimiento_bancario    @relation(fields: [id_movimiento_bancario], references: [id_movimiento_bancario], onUpdate: NoAction, map: "fk_conciliacion_movimiento_bancario")
+  movimiento_financiero    movimiento_financiero  @relation(fields: [id_movimiento_financiero], references: [id_movimiento_financiero], onUpdate: NoAction, map: "fk_conciliacion_movimiento_financiero")
   detalle_conciliacion     detalle_conciliacion[]
 
   @@index([id_movimiento_financiero, id_movimiento_bancario], map: "idx_conciliacion_movimientos")
@@ -162,16 +152,6 @@ model costo_proyecto {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model cotizacion {
-  /// Campos comerciales I2; no se deducen desde observaciones.
-  referencia_demostracion String?              @unique @db.VarChar(80)
-  exento_iva              Boolean              @default(false)
-  descuento_tipo          String?              @db.VarChar(20)
-  descuento_valor         Decimal              @default(0) @db.Decimal(14, 2)
-  monto_neto              Decimal?             @db.Decimal(14, 2)
-  monto_impuesto          Decimal?             @db.Decimal(14, 2)
-  cotizacion_version      cotizacion_version[]
-  orden_compra_b2b        orden_compra_b2b?
-
   id_cotizacion             Int                  @id @default(autoincrement())
   id_ficha_cliente          Int
   id_moneda                 Int
@@ -186,7 +166,7 @@ model cotizacion {
   ficha_cliente             ficha_cliente        @relation(fields: [id_ficha_cliente], references: [id_ficha_cliente], onUpdate: NoAction, map: "fk_cotizacion_ficha_cliente")
   moneda                    moneda               @relation(fields: [id_moneda], references: [id_moneda], onUpdate: NoAction, map: "fk_cotizacion_moneda")
   detalle_cotizacion        detalle_cotizacion[]
-  nota_venta                nota_venta?
+  nota_venta                nota_venta[]
 
   @@index([id_ficha_cliente], map: "idx_cotizacion_ficha")
   @@schema("finanzas")
@@ -356,11 +336,9 @@ model documento_compra_proveedor {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model documento_tributario {
-  documento_tributario_nota_venta documento_tributario_nota_venta[]
-
   id_documento_tributario    Int                       @id @default(autoincrement())
   id_ficha_cliente           Int
-  id_nota_venta              Int?
+  id_nota_venta              Int
   id_tipo_documento          Int
   id_moneda                  Int
   id_documento_referencia    Int?
@@ -377,7 +355,7 @@ model documento_tributario {
   asignacion_pago_cliente    asignacion_pago_cliente[]
   ficha_cliente              ficha_cliente             @relation(fields: [id_ficha_cliente], references: [id_ficha_cliente], onUpdate: NoAction, map: "fk_documento_tributario_ficha_cliente")
   moneda                     moneda                    @relation(fields: [id_moneda], references: [id_moneda], onUpdate: NoAction, map: "fk_documento_tributario_moneda")
-  nota_venta                 nota_venta?               @relation(fields: [id_nota_venta], references: [id_nota_venta], onUpdate: NoAction, map: "fk_documento_tributario_nota_venta")
+  nota_venta                 nota_venta                @relation(fields: [id_nota_venta], references: [id_nota_venta], onUpdate: NoAction, map: "fk_documento_tributario_nota_venta")
   documento_tributario       documento_tributario?     @relation("documento_tributarioTodocumento_tributario", fields: [id_documento_referencia], references: [id_documento_tributario], onDelete: Restrict, onUpdate: NoAction, map: "fk_documento_tributario_referencia")
   other_documento_tributario documento_tributario[]    @relation("documento_tributarioTodocumento_tributario")
   tipo_documento             tipo_documento            @relation(fields: [id_tipo_documento], references: [id_tipo_documento], onUpdate: NoAction, map: "fk_documento_tributario_tipo_documento")
@@ -390,7 +368,6 @@ model documento_tributario {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model empleado {
-  cuenta_m4 usuario? @relation("empleado_m4")
   rut_empleado             String                     @id @db.VarChar(15)
   id_cargo                 Int
   id_tipo_vinculo_laboral  Int
@@ -689,20 +666,9 @@ model movimiento_financiero {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model nota_venta {
-  /// monto_total conserva el monto original; vigente y saldo se calculan, no se cachean.
-  exento_iva                      Boolean                           @default(false)
-  id_proyecto_contexto            BigInt?
-  proyecto_contexto               proyecto?                         @relation(fields: [id_proyecto_contexto], references: [proyecto_proyecto_id], onDelete: Restrict)
-  guia_despacho                   guia_despacho[]
-  condicion_cobro_nv              condicion_cobro_nv[]
-  reversion_nota_venta            reversion_nota_venta[]
-  documento_tributario_nota_venta documento_tributario_nota_venta[]
-  saldo_favor_cliente             saldo_favor_cliente[]
-  aplicacion_saldo_favor          aplicacion_saldo_favor[]
-
   id_nota_venta           Int                       @id @default(autoincrement())
   id_ficha_cliente        Int
-  id_cotizacion           Int?                      @unique
+  id_cotizacion           Int?
   id_moneda               Int
   numero_nota_venta       String                    @unique @db.VarChar(50)
   fecha_emision           DateTime                  @db.Date
@@ -759,33 +725,22 @@ model origen_movimiento_financiero {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model pago_cliente {
-  referencia_demostracion String?          @unique @db.VarChar(80)
-  id_categoria_pago       Int?
-  cantidad_cuotas         Int?
-  antecedentes_medio      Json?
-  fecha_registro          DateTime         @default(now())
-  estado_conciliacion     String           @default("pendiente") @db.VarChar(20)
-  categoria_pago          categoria_pago?  @relation(fields: [id_categoria_pago], references: [id_categoria_pago], onDelete: Restrict)
-  anulacion_pago          anulacion_pago?
-  reversion_pago          reversion_pago[]
-  conciliacion            conciliacion[]
-
-  id_pago_cliente         Int                      @id @default(autoincrement())
+  id_pago_cliente         Int                       @id @default(autoincrement())
   id_ficha_cliente        Int
   id_moneda               Int
   id_medio_pago           Int
-  fecha_pago              DateTime                 @db.Date
-  monto_pago              Decimal                  @db.Decimal(14, 2)
-  tipo_cambio_usado       Decimal?                 @db.Decimal(14, 4)
-  monto_convertido        Decimal?                 @db.Decimal(14, 2)
-  naturaleza_pago         String                   @default("ingreso_cliente") @db.VarChar(30)
-  estado_verificacion     String                   @default("pendiente") @db.VarChar(30)
+  fecha_pago              DateTime                  @db.Date
+  monto_pago              Decimal                   @db.Decimal(14, 2)
+  tipo_cambio_usado       Decimal?                  @db.Decimal(14, 4)
+  monto_convertido        Decimal?                  @db.Decimal(14, 2)
+  naturaleza_pago         String                    @default("ingreso_cliente") @db.VarChar(30)
+  estado_verificacion     String                    @default("pendiente") @db.VarChar(30)
   comprobante_pago        String?
   observacion             String?
-  asignacion_pago_cliente asignacion_pago_cliente?
-  ficha_cliente           ficha_cliente            @relation(fields: [id_ficha_cliente], references: [id_ficha_cliente], onUpdate: NoAction, map: "fk_pago_cliente_ficha_cliente")
-  medio_pago              medio_pago               @relation(fields: [id_medio_pago], references: [id_medio_pago], onUpdate: NoAction, map: "fk_pago_cliente_medio_pago")
-  moneda                  moneda                   @relation(fields: [id_moneda], references: [id_moneda], onUpdate: NoAction, map: "fk_pago_cliente_moneda")
+  asignacion_pago_cliente asignacion_pago_cliente[]
+  ficha_cliente           ficha_cliente             @relation(fields: [id_ficha_cliente], references: [id_ficha_cliente], onUpdate: NoAction, map: "fk_pago_cliente_ficha_cliente")
+  medio_pago              medio_pago                @relation(fields: [id_medio_pago], references: [id_medio_pago], onUpdate: NoAction, map: "fk_pago_cliente_medio_pago")
+  moneda                  moneda                    @relation(fields: [id_moneda], references: [id_moneda], onUpdate: NoAction, map: "fk_pago_cliente_moneda")
 
   @@index([id_ficha_cliente], map: "idx_pago_cliente_ficha")
   @@schema("finanzas")
@@ -1824,9 +1779,6 @@ model obra {
 }
 
 model perfil {
-  codigo_m4 String? @unique
-  activo_m4 Boolean @default(false)
-  admite_particulares Boolean @default(false)
   perfil_id_perfil     BigInt           @id(map: "pk_perfil") @default(autoincrement())
   perfil_nombre_perfil String?          @db.VarChar(150)
   perfil_descripcion   String?
@@ -1848,12 +1800,6 @@ model perfil_permiso {
 }
 
 model permiso {
-  codigo_m4 String? @unique
-  activo_m4 Boolean @default(false)
-  requiere_administrador Boolean @default(false)
-  particulares usuario_permiso_particular[]
-  dependencias permiso_dependencia[] @relation("permiso_dependiente")
-  requerido_por permiso_dependencia[] @relation("permiso_requerido")
   permiso_id_permiso         BigInt           @id(map: "pk_permiso") @default(autoincrement())
   permiso_modulo             String?          @db.VarChar(150)
   permiso_accion             String?          @db.VarChar(150)
@@ -1880,8 +1826,6 @@ model prestamo_herramientas {
 }
 
 model proyecto {
-  notas_venta_contexto nota_venta[]
-
   proyecto_proyecto_id        BigInt                   @id(map: "pk_proyecto") @default(autoincrement())
   proyecto_codigo_proyecto    String?
   proyecto_nombre_referencia  String?
@@ -1993,16 +1937,6 @@ model tarea_usuario {
 }
 
 model usuario {
-  acceso_m4 String? @unique
-  empleado_m4 String? @unique @db.VarChar(15)
-  configuracion_particular Boolean @default(false)
-  administrador_original Boolean @default(false)
-  version_seguridad Int @default(0)
-  empleado_seguridad empleado? @relation("empleado_m4", fields: [empleado_m4], references: [rut_empleado])
-  particulares usuario_permiso_particular[]
-  seguridad estado_seguridad_usuario?
-  sesiones sesion_usuario[]
-  recuperaciones token_recuperacion[]
   usuario_id_usuario                               BigInt                   @id(map: "pk_usuario") @default(autoincrement())
   usuario_fecha_de_ultima_edicion                  DateTime?                @db.Timestamptz(6)
   usuario_rut_usuario                              String?                  @db.VarChar(12)
@@ -2045,13 +1979,7 @@ model usuario {
   @@schema("terreno")
 }
 
-/// Credencial reutilizada: usuario_contrasena contiene exclusivamente el hash en nuevas credenciales.
 model usuario_contrasena {
-  activa Boolean @default(false)
-  temporal Boolean @default(false)
-  creada DateTime @default(now()) @db.Timestamptz(6)
-  vence DateTime? @db.Timestamptz(6)
-  invalidada DateTime? @db.Timestamptz(6)
   usuario_id_usuario BigInt
   usuario_contrasena String
   usuario            usuario @relation(fields: [usuario_id_usuario], references: [usuario_id_usuario], onDelete: NoAction, onUpdate: NoAction, map: "fk_usuario_contrasena_usuario_id_usuario")
@@ -2103,225 +2031,4 @@ view v_ficha_cliente_movimientos {
   descripcion           String?
 
   @@schema("finanzas")
-}
-
-/// PROVISIONAL I2 — versiones comerciales, sin módulo de auditoría.
-model cotizacion_version {
-  id_cotizacion_version Int        @id @default(autoincrement())
-  id_cotizacion         Int
-  fecha                 DateTime   @default(now())
-  antecedentes          Json
-  motivo                String
-  cotizacion            cotizacion @relation(fields: [id_cotizacion], references: [id_cotizacion], onDelete: Restrict)
-
-  @@schema("finanzas")
-}
-
-/// PROVISIONAL I2 — antecedente obligatorio de aceptación B2B.
-model orden_compra_b2b {
-  id_orden_compra_b2b Int        @id @default(autoincrement())
-  id_cotizacion       Int        @unique
-  folio               String
-  respaldo            String
-  fecha               DateTime   @db.Date
-  cotizacion          cotizacion @relation(fields: [id_cotizacion], references: [id_cotizacion], onDelete: Restrict)
-
-  @@schema("finanzas")
-}
-
-/// PROVISIONAL I2 — tabla propia hasta cerrar el modelo documental.
-model guia_despacho {
-  id_guia_despacho Int        @id @default(autoincrement())
-  id_nota_venta    Int
-  folio            String     @unique
-  fecha_emision    DateTime   @db.Date
-  estado           String     @default("emitida")
-  antecedentes     Json?
-  nota_venta       nota_venta @relation(fields: [id_nota_venta], references: [id_nota_venta], onDelete: Restrict)
-
-  @@schema("finanzas")
-}
-
-/// PROVISIONAL I2 — referencias comerciales, nunca vencimientos morosos independientes.
-model condicion_cobro_nv {
-  id_condicion_cobro_nv Int        @id @default(autoincrement())
-  id_nota_venta         Int
-  descripcion           String
-  monto_referencia      Decimal?   @db.Decimal(14, 2)
-  porcentaje_referencia Decimal?   @db.Decimal(5, 2)
-  evento_referencia     String?
-  nota_venta            nota_venta @relation(fields: [id_nota_venta], references: [id_nota_venta], onDelete: Restrict)
-
-  @@schema("finanzas")
-}
-
-/// PROVISIONAL I2 — permite reutilización M:N de DTE sin duplicar el documento.
-model documento_tributario_nota_venta {
-  id_documento_tributario Int
-  id_nota_venta           Int
-  documento_tributario    documento_tributario @relation(fields: [id_documento_tributario], references: [id_documento_tributario], onDelete: Restrict)
-  nota_venta              nota_venta           @relation(fields: [id_nota_venta], references: [id_nota_venta], onDelete: Restrict)
-
-  @@id([id_documento_tributario, id_nota_venta])
-  @@schema("finanzas")
-}
-
-/// PROVISIONAL I2 — conserva original, monto, motivo, responsable y respaldo.
-model reversion_nota_venta {
-  destino_excedente String? @db.VarChar(30)
-  id_reversion_nota_venta Int                   @id @default(autoincrement())
-  id_nota_venta           Int
-  monto                   Decimal               @db.Decimal(14, 2)
-  fecha                   DateTime              @default(now())
-  motivo                  String
-  responsable             String
-  folio_nota_credito      String                @unique
-  respaldo_pdf            String
-  nota_venta              nota_venta            @relation(fields: [id_nota_venta], references: [id_nota_venta], onDelete: Restrict)
-  saldo_favor_cliente     saldo_favor_cliente[]
-
-  @@schema("finanzas")
-}
-
-/// PROVISIONAL I2 — anulación registral; no representa devolución.
-model anulacion_pago {
-  id_anulacion_pago Int          @id @default(autoincrement())
-  id_pago_cliente   Int          @unique
-  fecha             DateTime     @default(now())
-  motivo            String
-  responsable       String
-  respaldo          String
-  pago_cliente      pago_cliente @relation(fields: [id_pago_cliente], references: [id_pago_cliente], onDelete: Restrict)
-
-  @@schema("finanzas")
-}
-
-/// PROVISIONAL I2 — devolución total/parcial, sin sobrescribir el pago original.
-model reversion_pago {
-  id_reversion_pago Int          @id @default(autoincrement())
-  id_pago_cliente   Int
-  monto             Decimal      @db.Decimal(14, 2)
-  fecha             DateTime     @default(now())
-  motivo            String
-  responsable       String
-  respaldo          String
-  pago_cliente      pago_cliente @relation(fields: [id_pago_cliente], references: [id_pago_cliente], onDelete: Restrict)
-
-  @@schema("finanzas")
-}
-
-/// PROVISIONAL I2 — se registra sólo por elección explícita, no automáticamente.
-model saldo_favor_cliente {
-  id_saldo_favor_cliente  Int                      @id @default(autoincrement())
-  id_cliente_financiero   Int
-  id_nota_venta           Int
-  id_reversion_nota_venta Int
-  monto_original          Decimal                  @db.Decimal(14, 2)
-  monto_disponible        Decimal                  @db.Decimal(14, 2)
-  fecha                   DateTime                 @default(now())
-  cliente_financiero      cliente_financiero       @relation(fields: [id_cliente_financiero], references: [id_cliente_financiero], onDelete: Restrict)
-  nota_venta              nota_venta               @relation(fields: [id_nota_venta], references: [id_nota_venta], onDelete: Restrict)
-  reversion_nota_venta    reversion_nota_venta     @relation(fields: [id_reversion_nota_venta], references: [id_reversion_nota_venta], onDelete: Restrict)
-  aplicacion_saldo_favor  aplicacion_saldo_favor[]
-
-  @@schema("finanzas")
-}
-
-/// PROVISIONAL I2 — movimiento y remanente; documentación tributaria pendiente.
-model aplicacion_saldo_favor {
-  id_aplicacion_saldo_favor Int                 @id @default(autoincrement())
-  id_saldo_favor_cliente    Int
-  id_nota_venta             Int
-  monto                     Decimal             @db.Decimal(14, 2)
-  fecha                     DateTime            @default(now())
-  responsable               String
-  saldo_favor_cliente       saldo_favor_cliente @relation(fields: [id_saldo_favor_cliente], references: [id_saldo_favor_cliente], onDelete: Restrict)
-  nota_venta                nota_venta          @relation(fields: [id_nota_venta], references: [id_nota_venta], onDelete: Restrict)
-
-  @@schema("finanzas")
-}
-
-/// PROVISIONAL I2 — sugerencia editable, no determina el saldo.
-model categoria_pago {
-  id_categoria_pago Int            @id @default(autoincrement())
-  nombre            String         @unique
-  activo            Boolean        @default(true)
-  pago_cliente      pago_cliente[]
-
-  @@schema("finanzas")
-}
-
-/// PROVISIONAL I2 — catálogo de cuotas habilitadas, mínimo una.
-model config_cuotas_tarjeta {
-  cantidad Int     @id
-  activo   Boolean @default(true)
-
-  @@schema("finanzas")
-}
-
-/// PROVISIONAL I2 — sin umbral arbitrario sembrado ni calendario hábil inventado.
-model config_umbral_por_vencer {
-  id_configuracion Int      @id @default(autoincrement())
-  dias_habiles     Int
-  fecha            DateTime @default(now())
-
-  @@schema("finanzas")
-}
-
-/// Relación provisional, distinta de la configuración base reutilizada en perfil.
-model usuario_permiso_particular {
- id_usuario BigInt
- id_permiso BigInt
- usuario usuario @relation(fields: [id_usuario], references: [usuario_id_usuario])
- permiso permiso @relation(fields: [id_permiso], references: [permiso_id_permiso])
- @@id([id_usuario,id_permiso])
- @@schema("terreno")
-}
-model permiso_dependencia {
- id_permiso BigInt
- id_requerido BigInt
- permiso permiso @relation("permiso_dependiente", fields: [id_permiso], references: [permiso_id_permiso])
- requerido permiso @relation("permiso_requerido", fields: [id_requerido], references: [permiso_id_permiso])
- @@id([id_permiso,id_requerido])
- @@schema("terreno")
-}
-/// Estado técnico provisional: bloqueo independiente de Activo/Inactivo.
-model estado_seguridad_usuario {
- id_usuario BigInt @id
- intentos Int @default(0)
- bloqueos Int @default(0)
- bloqueo_hasta DateTime? @db.Timestamptz(6)
- bloqueo_persistente Boolean @default(false)
- actualizado DateTime @default(now()) @db.Timestamptz(6)
- responsable String?
- usuario usuario @relation(fields: [id_usuario], references: [usuario_id_usuario])
- @@schema("terreno")
-}
-/// Se guarda hash del secreto de sesión; el índice parcial de migración asegura sesión única.
-model sesion_usuario {
- id String @id @default(uuid())
- id_usuario BigInt
- secreto_hash String @unique
- inicio DateTime @default(now()) @db.Timestamptz(6)
- vence DateTime @db.Timestamptz(6)
- invalidada DateTime? @db.Timestamptz(6)
- motivo String?
- direccion String?
- agente String?
- version_seguridad Int
- usuario usuario @relation(fields: [id_usuario], references: [usuario_id_usuario])
- @@index([id_usuario])
- @@schema("terreno")
-}
-/// Token opaco de un solo uso. Nunca se guarda el secreto recuperable.
-model token_recuperacion {
- id String @id @default(uuid())
- id_usuario BigInt
- secreto_hash String @unique
- creado DateTime @default(now()) @db.Timestamptz(6)
- vence DateTime @db.Timestamptz(6)
- utilizado DateTime? @db.Timestamptz(6)
- usuario usuario @relation(fields: [id_usuario], references: [usuario_id_usuario])
- @@index([id_usuario])
- @@schema("terreno")
 }

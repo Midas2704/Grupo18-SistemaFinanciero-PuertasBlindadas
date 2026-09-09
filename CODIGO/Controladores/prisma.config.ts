@@ -1,13 +1,13 @@
 import "dotenv/config";
-import { defineConfig, env } from "prisma/config";
+import { defineConfig } from "prisma/config";
 
 export default defineConfig({
+  earlyAccess: true,
   schema: "prisma/schema.prisma",
-  migrations: {
-    path: "prisma/migrations",
-    seed: "node -r ts-node/register prisma/seed.ts",
+  migrate: {
+    migrations: "prisma/migrations",
   },
   datasource: {
-    url: env("DATABASE_URL"),
+    url: process.env.DATABASE_URL!,
   },
 });
