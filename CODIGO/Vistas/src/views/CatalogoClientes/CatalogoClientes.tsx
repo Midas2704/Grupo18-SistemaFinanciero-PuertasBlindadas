@@ -66,7 +66,7 @@ const CatalogoClientes: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900">Catálogo de Clientes</h1>
           <p className="text-sm text-gray-500 mt-1">Gestión de clientes financieros y saldos</p>
         </div>
-        {sesion?.permisos.includes('CU01') && <button onClick={() => fijarNuevo(true)} className="px-4 py-2.5 bg-primary-600 text-white rounded-lg font-semibold inline-flex items-center gap-2"><Plus className="w-4 h-4"/>Nuevo cliente</button>}
+        {sesion?.permisos.includes('CU01') && <button onClick={() => fijarNuevo(true)} className="px-4 py-2.5 bg-primary-600 text-white rounded-lg font-semibold inline-flex items-center gap-2"><Plus className="w-4 h-4"/>Crear cliente</button>}
       </div>
 
       {nuevo && <form onSubmit={guardar} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
