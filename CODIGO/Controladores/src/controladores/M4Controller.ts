@@ -3,7 +3,7 @@ import { prisma } from '../db';
 import { ErrorAplicacion } from '../utilidades/ErrorAplicacion';
 import { comprobarClave, hashClave, validarClave, secreto, huella, futuro, politica } from '../utilidades/seguridad';
 import { CorreoRecuperacion, CorreoDesarrollo } from '../utilidades/correo';
-import { codigosTodosLosCU, operacionesPermiso } from '../validaciones/permisos';
+import { operacionesPermiso } from '../validaciones/permisos';
 import { texto } from '../validaciones/solicitudes';
 
 type Transaccion = Prisma.TransactionClient;
@@ -16,7 +16,6 @@ const error = (estado: number, mensaje: string): never => { throw new ErrorAplic
 const idCuenta = (valor: unknown) => { if (!/^\d+$/.test(String(valor))) return error(400,'Usuario inválido'); return BigInt(String(valor)); };
 const confirmar = (entrada: Entrada) => { if (entrada.confirmado !== true) error(400,'Debes confirmar la operación'); };
 const permisosEfectivos = (cuenta: Cuenta) => {
- if(cuenta.usuario_es_administrador && cuenta.perfil?.codigo_m4 === 'gerencia') return codigosTodosLosCU;
  const permisos = cuenta.configuracion_particular ? cuenta.particulares.map(v => v.permiso) : (cuenta.perfil?.perfil_permiso.filter(v => v.perfil_permiso_activo).map(v => v.permiso) || []);
  return permisos.filter(p => p.activo_m4 && p.codigo_m4 && (!p.requiere_administrador || cuenta.usuario_es_administrador)).map(p => p.codigo_m4!);
 };
